@@ -6,6 +6,15 @@ const {print} = require('./mod_helpers');
 const cancel = util.promisify(binance.cancel);
 const openOrders = util.promisify(binance.openOrders);
 
+
+const EventEmitter = require('events');
+
+class MyEmitter extends EventEmitter {}
+
+const myEmitter = new MyEmitter();
+
+
+
 /**
  * Pair object factory
  * @module charlesdarkwind/tradebot4
@@ -83,9 +92,7 @@ class Pair {
      TRADE
      EXPIRED
      {
-      "E": 1499405658658,            // Event time *
       "s": "ETHBTC",                 // Symbol *
-      "c": "mUvoqJxFIILMdfAW5iGSOW", // Client order ID
       "S": "BUY",                    // Side *
       "o": "LIMIT",                  // Order type *
       "q": "1.00000000",             // Order quantity *
@@ -108,75 +115,8 @@ class Pair {
      */
 
 
-    NEW_LIMIT_BUY(data) {
-        const price = parseFloat(data.p);
-        const qty = parseFloat(data.q);
-        this.buy_placed = true;
-        this.last_buy_line = this.buy_line;
-        this.order_id = data.i;
-        this.position_size = price / qty;
-        this.busy = false;
 
-        print(this.pair, `NEW_LIMIT_BUY at price: ${price}`);
-    }
 
-    /**
-     * Query orders for a pair
-     * @return {Promise<void>}
-     */
-    async order_infos() {
-
-    }
-
-    async cancel_sell() {
-        let err, res;
-
-        [err, res] = await to(cancel(this.pair, this.tp_order_id));
-        if (err) {
-            this.error_count++;
-            print(symbol, `Error when cancel sell order for ${name}.`, err);
-
-            let err2, res2;  // REST: What happened?
-            [err2, res2] = await to(openOrders(this.pair));
-        }
-    }
-
-    /**
-     * wait 2 seconds in case other fill goes thru
-     *
-     * Needs 20% position size
-     * at least 20% more qty than last order
-     */
-    handle_sell() {
-
-        this.is_about_to_sell = true;
-        this.planned_sell_time = Date.now() + 2000;
-
-        if (this.percent_filled < 20 ||)
-
-        // place sell
-            this.last_sell_placed_time = Date.now()
-    }
-
-    PARTIALLY_FILLED_LIMIT_BUY(data) {
-        this.concurent_count = true; // todo handle concurent count at the session level
-        this.last_buy_filled_time = Date.now();
-        this.last_executed_price = parseFloat(data.L);
-        this.last_executed_qty_btc = parseFloat(data.Y);
-        this.cummulative_qty_btc = parseFloat(data.Z);
-        this.percent_filled = Math.round(this.cummulative_qty_btc / this.position_size * 100);
-
-        print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-
-        this.handle_sell();
-    }
-
-    FILLED_LIMIT_BUY(data) {
-        this.concurent_count = true; // todo
-        this.buy_placed = false;
-        this.buy_filled = true;
-        print(this.pair, `FILLED_LIMIT_BUY ${last_executed_qty_btc} btc (${percent_filled}%) at price: ${last_executed_price}`);
-    }
 
     /**
      * Shouldnt have more than 6 buys or errors per hour.
@@ -199,6 +139,117 @@ class Pair {
         }
         return true;
     }
+
+    async placeSellOrder() {
+        if (this.validate() !== true) return;
+
+        this.busy = true;
+        let err, res;
+
+        [err, res] = await to(buy(this.pair, this.setPositionSize(), this.sell_line, {type: 'LIMIT'}));
+        if (err) this.buyError(err);
+        else this.buy_count++;
+    }
+
+
+
+
+
+
+
+
+    NEW_LIMIT_BUY(data) {
+        const price = parseFloat(data.p);
+        const qty = parseFloat(data.q);
+        this.buy_placed = true;
+        this.last_buy_line = this.buy_line;
+        this.order_id = data.i;
+        this.position_size = price / qty;
+        this.busy = false;
+        print(this.pair, `NEW_LIMIT_BUY at price: ${price}`);
+    }
+
+    /**
+     * Query orders for a pair
+     * @return {Promise<void>}
+     */
+    async order_infos(res) {
+        const order = await openOrders.catch(err => console.log(err));
+        print(this.pairs, `Err cancel resp`, err);
+    }
+
+
+    async reveived_cancel_sell() {
+        let err, res;
+
+        [err, res] = await to(cancel(this.pair, this.tp_order_id));
+        if (err) {
+            this.error_count++;
+            print(symbol, `Error when cancel sell order for ${name}.`, err);
+
+            let err2, res2;  // REST: What happened?
+            [err2, res2] = await to(openOrders(this.pair));
+        }
+    }
+
+
+
+    /**
+     * wait 2 seconds in case other fill goes thru
+     *
+     * Needs 20% position size
+     * at least 20% more qty than last order
+     */
+    async place_sell_orders() {
+        if (this.validate() !== true) return;
+        if (this.last_percent_filled / this.percent_filled < 0.2 || this.buy_filled === true) return;
+
+    }
+
+
+    /**
+     * This is called in loop upon partial fills, witll triggers afer 2 secondes of no noew fills
+     * of BVUY= FILLED
+     */
+    handle_sell() {
+        if (this.buy_filled) {
+            this.place_sell_orders();
+            this.last_sell_placed_time = Date.now()
+        } else {
+            if (!this.is_about_to_sell === true) {
+                this.is_about_to_sell = true;
+                this.planned_sell_time = Date.now() + 2000;
+            } else if (this.is_about_to_sell === true && Date.now() > this.last_sell_placed_time) {
+                this.place_sell_orders();
+                his.is_about_to_sell = false;
+                this.last_sell_placed_time = Date.now()
+            }
+        }
+    }
+
+    PARTIALLY_FILLED_LIMIT_BUY(data) {
+        this.concurent_count = true; // todo handle concurent count at the session level
+        this.last_buy_filled_time = Date.now();
+        this.last_executed_price = parseFloat(data.L);
+        this.last_executed_qty_btc = parseFloat(data.Y);
+        this.cummulative_qty_btc = parseFloat(data.Z);
+        this.percent_filled = Math.round(this.cummulative_qty_btc / this.position_size * 100);
+        this.order_id = data.i;
+        print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+
+        this.handle_sell();
+    }
+
+    FILLED_LIMIT_BUY(data) {
+        this.concurent_count = true; // todo
+        this.buy_placed = false;
+        this.buy_filled = true;
+        this.order_id = data.i;
+        print(this.pair, `FILLED_LIMIT_BUY ${last_executed_qty_btc} btc (${percent_filled}%) at price: ${last_executed_price}`);
+    }
+
+
+
 
     /**
      * Handle binance errors when buying

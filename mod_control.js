@@ -8,6 +8,7 @@ const binance = require('./binance');
 const moment = require('moment');
 const format = 'MMM D, H:mm:ss';
 
+
 process.on('uncaughtException', err => console.log(err));
 process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
 
@@ -29,6 +30,9 @@ const balanceUpdate = data => { // todo will spam a lot in partial fills
         }
     });
 };
+
+
+
 
 /**
  Execution types:
@@ -62,12 +66,17 @@ const balanceUpdate = data => { // todo will spam a lot in partial fills
 }
  * @param data
  */
+
+
+
+
+
 const executionUpdate = data => { // todo will spam a lot in partial fills
     const pair = data.s;
     if (!S.pairs.includes(pair)) return;
 
     const P = S.Pairs[pair];
-    const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY
+    const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
     P[func](data);
 
     // const date = moment(time).format(format);
@@ -76,6 +85,9 @@ const executionUpdate = data => { // todo will spam a lot in partial fills
     // console.log(`Last executed price: ${L}, last quote asset transacted quantity (i.e. lastPrice * lastQty): ${Y}`);
     // console.log(`Averageprice: ${avgPrice}`);
 };
+
+
+
 
 
 const start = async () => {
