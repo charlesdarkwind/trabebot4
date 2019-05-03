@@ -48,6 +48,10 @@ class Pair {
         this.last_sell_placed_time = Date.now()
     }
 
+    rnd(num, pair) {
+        return Math.round(num * this.round) / this.round;
+    }
+
     decrementBuyCounts() {
         if (this.buy_count > 0)
             this.buy_count--;
@@ -114,10 +118,6 @@ class Pair {
     }
      */
 
-
-
-
-
     /**
      * Shouldnt have more than 6 buys or errors per hour.
      * If the state is deemed incorrect, stop pair. If pair is already stopped,
@@ -140,25 +140,9 @@ class Pair {
         return true;
     }
 
-    async placeSellOrder() {
-        if (this.validate() !== true) return;
-
-        this.busy = true;
-        let err, res;
-
-        [err, res] = await to(buy(this.pair, this.setPositionSize(), this.sell_line, {type: 'LIMIT'}));
-        if (err) this.buyError(err);
-        else this.buy_count++;
-    }
-
-
-
-
-
-
-
 
     NEW_LIMIT_BUY(data) {
+        this.buy_count++;
         const price = parseFloat(data.p);
         const qty = parseFloat(data.q);
         this.buy_placed = true;
@@ -178,6 +162,12 @@ class Pair {
         print(this.pairs, `Err cancel resp`, err);
     }
 
+    // NEW_LIMIT_SELL
+    // FILLED_LIMIT_SELL
+    // PARTIALLY_LIMIT_SEL
+
+
+
 
     async reveived_cancel_sell() {
         let err, res;
@@ -194,6 +184,10 @@ class Pair {
 
 
 
+
+
+
+
     /**
      * wait 2 seconds in case other fill goes thru
      *
@@ -201,8 +195,15 @@ class Pair {
      * at least 20% more qty than last order
      */
     async place_sell_orders() {
-        if (this.validate() !== true) return;
-        if (this.last_percent_filled / this.percent_filled < 0.2 || this.buy_filled === true) return;
+        if (this.validate() !== true || this.percent_filled < 0.2) return;
+        this.busy = true;
+        let err, res;
+
+        if (this.buy_filled === true) {
+            [err, res] = await to(sell(this.pair, this.setPositionSize(), this.sell_line, {type: 'LIMIT'}));
+            if (err) this.buyError(err);
+            else this.buy_count++;
+        }
 
     }
 
@@ -212,31 +213,50 @@ class Pair {
      * of BVUY= FILLED
      */
     handle_sell() {
+        // Buy is filled, sell everyhing
         if (this.buy_filled) {
             this.place_sell_orders();
-            this.last_sell_placed_time = Date.now()
-        } else {
-            if (!this.is_about_to_sell === true) {
-                this.is_about_to_sell = true;
-                this.planned_sell_time = Date.now() + 2000;
-            } else if (this.is_about_to_sell === true && Date.now() > this.last_sell_placed_time) {
+        } else { // Still partiall fill
+            if (Date.now() - this.last_fill_time > 2000) { // todo eventually sell
                 this.place_sell_orders();
-                his.is_about_to_sell = false;
-                this.last_sell_placed_time = Date.now()
+            } else {
+                this.last_fill_time += Date.now(); // wait 2 more seconds
             }
+
+
+
+
+            // if (this.is_about_to_sell !== true) {
+            //     this.is_about_to_sell = true;
+            //     this.planned_sell_time = Date.now() + 2000;
+            // } else if (this.is_about_to_sell === true && Date.now() > this.last_sell_placed_time) {
+            //     this.place_sell_orders();
+            //     his.is_about_to_sell = false;
+            //     this.last_sell_placed_time = Date.now()
+            // }
+
+
         }
     }
 
+
+    queue_partials() {
+        if (Date.now() - this.last_fill_time > 2000) { // Se
+
+        }
+    }
+
+
     PARTIALLY_FILLED_LIMIT_BUY(data) {
+        this.last_fill_time = Date.now();
         this.concurent_count = true; // todo handle concurent count at the session level
         this.last_buy_filled_time = Date.now();
         this.last_executed_price = parseFloat(data.L);
-        this.last_executed_qty_btc = parseFloat(data.Y);
+        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
         this.cummulative_qty_btc = parseFloat(data.Z);
         this.percent_filled = Math.round(this.cummulative_qty_btc / this.position_size * 100);
         this.order_id = data.i;
         print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-
         this.handle_sell();
     }
 
@@ -246,7 +266,9 @@ class Pair {
         this.buy_filled = true;
         this.order_id = data.i;
         print(this.pair, `FILLED_LIMIT_BUY ${last_executed_qty_btc} btc (${percent_filled}%) at price: ${last_executed_price}`);
+        this.handle_sell();
     }
+
 
 
 
@@ -256,7 +278,7 @@ class Pair {
      * Don't print -1015 stack
      * @param {Object} e - Error object
      */
-    buyError(e) {
+    buyError_buy(e) {
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
             console.error(this.pair, '-1015');
         } else {
@@ -281,8 +303,7 @@ class Pair {
         let err, res;
 
         [err, res] = await to(buy(this.pair, this.setPositionSize(), this.buy_line, {type: 'LIMIT'}));
-        if (err) this.buyError(err);
-        else this.buy_count++;
+        if (err) this.buyError_buy(err);
     }
 }
 

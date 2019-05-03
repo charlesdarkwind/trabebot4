@@ -39,6 +39,7 @@ class Session {
             const filters = info.filters.find(obj => obj.filterType === 'PRICE_FILTER');
             P.ticksize = parseFloat(filters.tickSize);
             P.precision = filters.tickSize.split('.')[1].length | 0;
+            P.round = 10**precision;
         });
     }
 

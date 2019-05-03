@@ -1,19 +1,17 @@
 require('dotenv').config({path: 'variables.env'});
 const fs = require('fs');
+const { spawn } = require('child_process');
 // const { Pair } = require('./mod_pair');
 const {Session} = require('./mod_session');
+const S = new Session(binance);
 const {print} = require('./mod_helpers');
 const {mod_data} = require('./mod_data');
 const binance = require('./binance');
 const moment = require('moment');
 const format = 'MMM D, H:mm:ss';
 
-
 process.on('uncaughtException', err => console.log(err));
 process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
-
-const S = new Session(binance);
-S.createPairs();
 
 const balanceUpdate = data => { // todo will spam a lot in partial fills
     setImmediate(() => {
@@ -30,9 +28,6 @@ const balanceUpdate = data => { // todo will spam a lot in partial fills
         }
     });
 };
-
-
-
 
 /**
  Execution types:
@@ -67,10 +62,6 @@ const balanceUpdate = data => { // todo will spam a lot in partial fills
  * @param data
  */
 
-
-
-
-
 const executionUpdate = data => { // todo will spam a lot in partial fills
     const pair = data.s;
     if (!S.pairs.includes(pair)) return;
@@ -89,17 +80,32 @@ const executionUpdate = data => { // todo will spam a lot in partial fills
 
 
 
-
+/**
+ * START
+ *
+ * So when program starts, it:
+ *      1. Create pairs objs, fetch exchange infos, fetch balances
+ *      1. calls python process 1, fetching missing klines
+ *      2. THEN calls python process 2, calculating all model dataframes
+ *
+ * @return {Promise<void>}
+ */
 const start = async () => {
 
-    // const S = new Session(binance);
-    // S.createPairs();
+    S.createPairs();        // Create Pairs instances
+    await S.setInfo();      // fetch exchange infos (REST)
+    await S.initBalances(); // fetch balances (REST)
 
-    await S.setInfo();
-    await S.initBalances();
-
+    // Start order updates stream
     binance.websockets.userData(balanceUpdate, executionUpdate);
 
+    // Call python process 1, fetching missing klines
+
+
+
+    ///////////////////////////////////////////////////////////
+    ////////////////  Update Intervals  ///////////////////////
+    ///////////////////////////////////////////////////////////
     /**
      * Update exchange infos and stuff every now and then
      */
