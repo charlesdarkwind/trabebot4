@@ -1,4 +1,5 @@
 const moment = require('moment');
+const {spawn} = require('child_process');
 
 const print = (pair, message, e, other) => {
     try {
@@ -35,3 +36,7 @@ exports.to = promise => {
     })
         .catch(err => [err]);
 };
+
+// exports.pythonProg = new Promise((success, err) => {
+//     spawn('python', [], )
+// });
