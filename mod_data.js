@@ -1,6 +1,6 @@
 const fs = require('fs');
 const print = require('./mod_helpers');
-import binance from './binance';
+const binance = require('./binance');
 
 /** Async Query exchange infos
  *

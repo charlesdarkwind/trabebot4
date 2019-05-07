@@ -1,10 +1,10 @@
-import fs from 'fs';
-import binance from './binance';
-
+const binance = require('./binance');
+// const fs = require('fs');
 const {print} = require('./mod_helpers');
 const {spawn} = require('child_process');
-const readFile = util.promisify(fs.readFile);
-const writeFile = util.promisify(fs.writeFile);
+const util = require('util');
+// const readFile = util.promisify(fs.readFile);
+// const writeFile = util.promisify(fs.writeFile);
 const getExchangeInfos = util.promisify(binance.exchangeInfo);
 const getBalances = util.promisify(binance.balance);
 
@@ -143,7 +143,7 @@ class Session {
         });
     }
 
-    balanceUpdate = data => { // todo will spam a lot in partial fills
+    balanceUpdate(data) { // todo will spam a lot in partial fills
         setImmediate(() => {
             for (const obj of data.B) {
                 const {a: asset, f: available, l: onOrder} = obj;
