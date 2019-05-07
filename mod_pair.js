@@ -1,18 +1,17 @@
-import binance from "./binance";
-
-const buy = require(binance.buy);
+const binance = require('./binance');
+const buy = binance.buy;
 const to = require('./mod_helpers').to;
 const {print} = require('./mod_helpers');
+const util = require('util');
 const cancel = util.promisify(binance.cancel);
 const openOrders = util.promisify(binance.openOrders);
 
-
-const EventEmitter = require('events');
-
-class MyEmitter extends EventEmitter {}
-
-const myEmitter = new MyEmitter();
-
+// const EventEmitter = require('events');
+//
+// class MyEmitter extends EventEmitter {}
+//
+// const myEmitter = new MyEmitter();
+//
 
 
 /**

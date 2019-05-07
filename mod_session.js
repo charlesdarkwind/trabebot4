@@ -1,9 +1,11 @@
+const os = require('os');
 const binance = require('./binance');
-// const fs = require('fs');
+const fs = require('fs');
 const {print} = require('./mod_helpers');
 const {spawn} = require('child_process');
+const Pair = require('./mod_pair');
 const util = require('util');
-// const readFile = util.promisify(fs.readFile);
+const readFile = util.promisify(fs.readFile);
 // const writeFile = util.promisify(fs.writeFile);
 const getExchangeInfos = util.promisify(binance.exchangeInfo);
 const getBalances = util.promisify(binance.balance);
@@ -17,8 +19,8 @@ const getBalances = util.promisify(binance.balance);
 class Session {
     constructor() {
         this.concurrent_count = 0;
-        this.pairs_excluded = pairs_excluded;
-        this.pairs = [];
+        this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
+        this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         this.Pairs = {};
     }
 
@@ -26,8 +28,8 @@ class Session {
      * Instanciate all pairs
      */
     createPairs() {
-        this.pairs_prod.map(pair => {
-            this.Pairs[pair] = new pair(pair, this); // hopefully no circular probs
+        this.pairs.map(pair => {
+            this.Pairs[pair] = new Pair(pair, this); // hopefully no circular probs
         });
     }
 
@@ -38,13 +40,14 @@ class Session {
      */
     async setInfo() {
         this.exchangeInfos = await getExchangeInfos();
-        this.Pairs.map(P => {
+        for (const pair in this.Pairs) {
+            const P = this.Pairs[pair];
             const info = this.exchangeInfos.symbols.find(pair => pair.symbol === P.pair);
             const filters = info.filters.find(obj => obj.filterType === 'PRICE_FILTER');
             P.ticksize = parseFloat(filters.tickSize);
             P.precision = filters.tickSize.split('.')[1].length | 0;
-            P.round = 10 ** precision;
-        });
+            P.round = 10 ** P.precision;
+        }
     }
 
     /**
@@ -72,7 +75,8 @@ class Session {
      * Decrement count of buys and errors for each pairs
      */
     decrementCounts() {
-        for (const P of this.Pairs) {
+        for (const pair in this.Pairs) {
+            const P = this.Pairs[pair];
             P.decrementBuyCounts();
             P.decrementErrorCounts();
         }
@@ -91,7 +95,13 @@ class Session {
      */
     async callPythonKlines() {
         return await new Promise((resolve, reject) => {
-            const ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'}); // todo: fix path on vps
+
+            let ls = undefined;
+            if (os.platform() === 'win32') {
+                ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\fetch_klines'});
+            } else {
+                ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'}); // todo: fix path on vps
+            }
 
             print('PY_1', 'Writing klines...');
 
@@ -100,7 +110,7 @@ class Session {
             });
 
             ls.stderr.on('data', data => {
-                print('PY_1', 'Err during python 1 klines fetching (REST)', data);
+                print('PY_1', 'Err during python 1 klines fetching (REST)', data.toString());
             });
 
             ls.on('close', code => {
@@ -122,17 +132,23 @@ class Session {
      */
     async callDfRecalc() {
         return await new Promise((resolve, reject) => {
-            // todo: pair must be listed in [pairstotest] from the python mod_data script
-            const ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'});
+
+            let ls = undefined;
+            if (os.platform() === 'win32') {
+                ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\backtester4\\sample'});
+            } else {
+                // todo: pair must be listed in [pairstotest] from the python mod_data script
+                ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/backtester4'});
+            }
 
             print('PY_2', 'Recalcing DFs...');
 
-            ls.stdout.on('data', msg => { //
+            ls.stdout.on('data', msg => {
                 print('PY_2', msg);
             });
 
             ls.stderr.on('data', data => {
-                print('PY_2', 'Err during python 2 pandas calc', data);
+                print('PY_2', 'Err during python 2 pandas calc', data.toString());
             });
 
             ls.on('close', code => {
@@ -148,7 +164,7 @@ class Session {
             for (const obj of data.B) {
                 const {a: asset, f: available, l: onOrder} = obj;
                 const pair = `${asset}BTC`;
-                if (!S.pairs.includes(pair)) return;
+                if (!this.pairs.includes(pair)) return;
                 const P = this.Pairs[pair];
                 if (!session.balances[asset]) session.balances[asset] = {}; // First call for coin
                 const avail = parseFloat(available);

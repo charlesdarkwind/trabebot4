@@ -3,3 +3,10 @@ Centraliser logs sans besoin connexion
 Check how many open orders, prevent bug like last time.... (pm2 startup too)
 
 Update BTC balance
+
+
+if problem when calling py_2:
+    have __init__.py
+    have setup.py
+    have backtester in path
+    pip install --no-deps -e .

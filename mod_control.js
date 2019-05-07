@@ -1,7 +1,7 @@
 require('dotenv').config({path: 'variables.env'});
 const fs = require('fs');
 const binance = require('./binance');
-const {Session} = require('./mod_session');
+const Session = require('./mod_session');
 const {print} = require('./mod_helpers');
 const {mod_data} = require('./mod_data');
 const moment = require('moment');
