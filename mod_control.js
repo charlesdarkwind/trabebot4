@@ -32,12 +32,21 @@ process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejectio
  */
 const start = async () => {
     const S = new Session();
-          S.createPairs();          // Create Pairs instances                                   ()
+    S.createPairs();          // Create Pairs instances                                   ()
     await S.setInfo();              // fetch exchange infos                                     (REST)
     await S.initBalances();         // fetch balances                                           (REST)
-    await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
-    await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
-          S.openTradesUpdates();    // Start order updates stream                               (WEB SOCKET)
+    // await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
+    // await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
+
+
+    /** open Trades Updates (Synchronous)
+     *
+     * Open stream of updates for orders, trades, execution state, ect...
+     *
+     * Need to pass it actual Session instance
+     */
+    binance.websockets.userData(data => S.balanceUpdate(data, S), data => S.executionUpdate(data, S));
+
     /**
      * INTERVAL: Update exchange infos every 2 hours
      *

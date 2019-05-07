@@ -159,18 +159,20 @@ class Session {
         });
     }
 
-    balanceUpdate(data) { // todo will spam a lot in partial fills
+    getPairs() {
+        return this.pairs;
+    }
+
+    balanceUpdate(data, S) { // todo will spam a lot in partial fills
+        // const S = this;
         setImmediate(() => {
             for (const obj of data.B) {
                 const {a: asset, f: available, l: onOrder} = obj;
                 const pair = `${asset}BTC`;
-                if (!this.pairs.includes(pair)) return;
-                const P = this.Pairs[pair];
-                if (!session.balances[asset]) session.balances[asset] = {}; // First call for coin
-                const avail = parseFloat(available);
-                const order = parseFloat(onOrder);
-                P.balance_available = avail;
-                P.balance_in_order = order;
+                if (!S.pairs.includes(pair)) return;
+                const P = S.Pairs[pair];
+                P.balance_available = parseFloat(available);
+                P.balance_in_order = parseFloat(onOrder);
             }
         });
     };
@@ -206,11 +208,12 @@ class Session {
      "Z": "0.00000000",             // Cumulative quote asset transacted quantity
      "Y": "0.00000000"              // Last quote asset transacted quantity (i.e. lastPrice * lastQty)
      */
-    executionUpdate(data) { // todo will spam a lot in partial fills
+    executionUpdate(data, S) { // todo will spam a lot in partial fills
         const pair = data.s;
-        if (!this.pairs.includes(pair)) return;
-        const P = this.Pairs[pair];
+        if (!S.pairs.includes(pair)) return;
+        const P = S.Pairs[pair];
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
+        console.log(func);
         P[func](data);
 
         // const date = moment(time).format(format);
@@ -225,7 +228,7 @@ class Session {
      * Open stream of updates for orders, trades, execution state, ect...
      */
     openTradesUpdates() {
-        binance.websockets.userData(this.balanceUpdate, this.executionUpdate);
+        binance.websockets.userData(data => this.balanceUpdate(data, this), data => this.executionUpdate(data, this));
     }
 }
 

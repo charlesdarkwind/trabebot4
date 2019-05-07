@@ -44,7 +44,7 @@ class Pair {
         this.concurent_count = 0;
         this.partial_fill_prices_buy = [];
         this.partial_fill_prices_sell = [];
-        this.last_sell_placed_time = Date.now()
+        this.last_sell_placed_time = Date.now();
     }
 
     rnd(num, pair) {
@@ -152,6 +152,10 @@ class Pair {
         print(this.pair, `NEW_LIMIT_BUY at price: ${price}`);
     }
 
+    CANCELED_LIMIT_BUY() {
+        print(this.pair, `CANCELED_LIMIT_BUY`);
+    }
+
     /**
      * Query orders for a pair
      * @return {Promise<void>}
@@ -208,8 +212,8 @@ class Pair {
 
 
     /**
-     * This is called in loop upon partial fills, witll triggers afer 2 secondes of no noew fills
-     * of BVUY= FILLED
+     * This is called in loop upon partial fills, witll triggers afer 2 secondes of no new fills
+     * of BUY = FILLED
      */
     handle_sell() {
         // Buy is filled, sell everyhing
