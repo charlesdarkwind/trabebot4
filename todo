@@ -2,6 +2,10 @@ Centraliser logs sans besoin connexion
 
 Check how many open orders, prevent bug like last time.... (pm2 startup too)
 
+should probably put recalc df into another vps and use database to share (1gb dfs probs?)
+
+make script for sell all and cancel all, run at start
+
 Update BTC balance
 
 

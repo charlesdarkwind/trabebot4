@@ -22,6 +22,7 @@ const openOrders = util.promisify(binance.openOrders);
 class Pair {
     constructor(pair, S) {
         this.S = S;
+        this.limiter = S.limiter;
         this.pair = pair;
         this.stop_time = 60 * 1000 * 60 * 5; // 5h
         this.is_buying = true;
@@ -41,7 +42,7 @@ class Pair {
         this.busy = false;
         this.buy_line = undefined;
         this.last_buy_line = undefined;
-        this.concurent_count = 0;
+        this.isConcurrent = false;
         this.partial_fill_prices_buy = [];
         this.partial_fill_prices_sell = [];
         this.last_sell_placed_time = Date.now();
@@ -74,7 +75,7 @@ class Pair {
     /**
      * Calculate position size that can be bought considering what is already bought.
      * Round it with respect to LOT_SIZE.
-     * Set the float converted as aattribute
+     * Set the float converted as attribute
      *
      * @return {string} position size string
      */
@@ -187,10 +188,6 @@ class Pair {
 
 
 
-
-
-
-
     /**
      * wait 2 seconds in case other fill goes thru
      *
@@ -210,72 +207,6 @@ class Pair {
 
     }
 
-
-    /**
-     * This is called in loop upon partial fills, witll triggers afer 2 secondes of no new fills
-     * of BUY = FILLED
-     */
-    handle_sell() {
-        // Buy is filled, sell everyhing
-        if (this.buy_filled) {
-            this.place_sell_orders();
-        } else { // Still partiall fill
-            if (Date.now() - this.last_fill_time > 2000) { // todo eventually sell
-                this.place_sell_orders();
-            } else {
-                this.last_fill_time += Date.now(); // wait 2 more seconds
-            }
-
-
-
-
-            // if (this.is_about_to_sell !== true) {
-            //     this.is_about_to_sell = true;
-            //     this.planned_sell_time = Date.now() + 2000;
-            // } else if (this.is_about_to_sell === true && Date.now() > this.last_sell_placed_time) {
-            //     this.place_sell_orders();
-            //     his.is_about_to_sell = false;
-            //     this.last_sell_placed_time = Date.now()
-            // }
-
-
-        }
-    }
-
-
-    queue_partials() {
-        if (Date.now() - this.last_fill_time > 2000) { // Se
-
-        }
-    }
-
-
-    PARTIALLY_FILLED_LIMIT_BUY(data) {
-        this.last_fill_time = Date.now();
-        this.concurent_count = true; // todo handle concurent count at the session level
-        this.last_buy_filled_time = Date.now();
-        this.last_executed_price = parseFloat(data.L);
-        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
-        this.cummulative_qty_btc = parseFloat(data.Z);
-        this.percent_filled = Math.round(this.cummulative_qty_btc / this.position_size * 100);
-        this.order_id = data.i;
-        print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-        this.handle_sell();
-    }
-
-    FILLED_LIMIT_BUY(data) {
-        this.concurent_count = true; // todo
-        this.buy_placed = false;
-        this.buy_filled = true;
-        this.order_id = data.i;
-        print(this.pair, `FILLED_LIMIT_BUY ${last_executed_qty_btc} btc (${percent_filled}%) at price: ${last_executed_price}`);
-        this.handle_sell();
-    }
-
-
-
-
-
     /**
      * Handle binance errors when buying
      * Don't print -1015 stack
@@ -287,26 +218,57 @@ class Pair {
         } else {
             this.error_count++;
             this.buy_placed = false; // can now place again
-            // Log normal error + some dumps todo
-            // print(pair, 'Error when placing Limit Buy.', err, JSON.stringify({
-            //     name,
-            //     positionSize,
-            //     positionSizeRaw,
-            //     buyLine: P.buyLine,
-            //     totalBalance: P.totalBalance
-            // }));
+            print(pair, 'Error when placing Limit Buy.', err, this); // todo dumping this = huge log
         }
         this.busy = false;
     }
 
-    async placeBuyOrder() {
-        if (this.validate() !== true) return;
-
+    async place_buy_order() {
         this.busy = true;
         let err, res;
 
         [err, res] = await to(buy(this.pair, this.setPositionSize(), this.buy_line, {type: 'LIMIT'}));
         if (err) this.buyError_buy(err);
+    }
+
+    /** Triggered by all sell event functions => means theres room for buying.
+     *
+     * Can it place a buy order?
+     *  - Whats in queue? (Just DONT place new one of same side)
+     *  - State is valid? (not stopped)
+     *  - Concurent count? (less than options.concurent_count_max)
+     */
+    async handle_sell() {
+        const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
+        const isValid = this.validate();
+        const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
+
+        if (isValid && !is_in_queue && is_concurents_ok)
+            await this.limiter.limit('push', 'place_buy_order', this);
+        else
+            print(this.pair, `Cant place buy order ${is_in_queue} ${isValid} ${is_concurents_ok}`); // todo remove / debug only
+    }
+
+    PARTIALLY_FILLED_LIMIT_BUY(data) {
+        this.isConcurrent = true;
+        this.last_executed_price = parseFloat(data.L);
+        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
+        this.cummulative_qty_btc = parseFloat(data.Z);
+        this.percent_filled = Math.round(this.cummulative_qty_btc / this.position_size * 100);
+        this.order_id = data.i;
+        print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+
+        this.handle_sell();
+    }
+
+    FILLED_LIMIT_BUY(data) {
+        this.isConcurrent = true;
+        this.buy_placed = false;
+        this.buy_filled = true;
+        this.order_id = data.i;
+        print(this.pair, `FILLED_LIMIT_BUY ${last_executed_qty_btc} btc (${percent_filled}%) at price: ${last_executed_price}`);
+
+        this.handle_sell();
     }
 }
 

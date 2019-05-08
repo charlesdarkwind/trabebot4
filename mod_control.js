@@ -2,6 +2,7 @@ require('dotenv').config({path: 'variables.env'});
 const fs = require('fs');
 const binance = require('./binance');
 const Session = require('./mod_session');
+const Limiter = require('./mod_limiter');
 const {print} = require('./mod_helpers');
 const {mod_data} = require('./mod_data');
 const moment = require('moment');
@@ -9,6 +10,10 @@ const format = 'MMM D, H:mm:ss';
 
 process.on('uncaughtException', err => console.log(err));
 process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
+
+const options = {
+    concurent_count_max: 6
+};
 
 /** START
  *
@@ -31,12 +36,14 @@ process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejectio
  * @return {Promise<void>}
  */
 const start = async () => {
+    const limiter = new Limiter();
+    S.createPairs(limiter, options);          // Create Pairs instances                                   ()
     const S = new Session();
-    S.createPairs();          // Create Pairs instances                                   ()
     await S.setInfo();              // fetch exchange infos                                     (REST)
     await S.initBalances();         // fetch balances                                           (REST)
     // await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
     // await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
+    await S.placeFirstBuys();
 
 
     /** open Trades Updates (Synchronous)
@@ -55,8 +62,8 @@ const start = async () => {
     const update = async () => {
         await S.setInfo();
     };
-
     setInterval(update, 60000 * 60 * 2); // 2h
+
     /**
      * INTERVAL: Decrement pairs buy & error counts every 10 mins
      *

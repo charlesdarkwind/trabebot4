@@ -17,7 +17,9 @@ const getBalances = util.promisify(binance.balance);
  * @return {object} instance to class object
  */
 class Session {
-    constructor() {
+    constructor(limiter, options) {
+        this.limiter = limiter;
+        this.options = options;
         this.concurrent_count = 0;
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
@@ -80,6 +82,14 @@ class Session {
             P.decrementBuyCounts();
             P.decrementErrorCounts();
         }
+    }
+
+    getConcurrent() {
+        let count = 0;
+        for (const p in this.Pairs) {
+            if (this.Pairs[p].isConcurrent) count++;
+        }
+        return count;
     }
 
     /**
@@ -164,7 +174,6 @@ class Session {
     }
 
     balanceUpdate(data, S) { // todo will spam a lot in partial fills
-        // const S = this;
         setImmediate(() => {
             for (const obj of data.B) {
                 const {a: asset, f: available, l: onOrder} = obj;
@@ -179,13 +188,7 @@ class Session {
 
     /** Execution Update:
      *
-     Types:
-     NEW
-     CANCELED
-     REJECTED
-     TRADE
-     EXPIRED
-
+     Types: NEW CANCELED REJECTED TRADE EXPIRED
      "E": 1499405658658,            // Event time *
      "s": "ETHBTC",                 // Symbol *
      "c": "mUvoqJxFIILMdfAW5iGSOW", // Client order ID
@@ -215,21 +218,19 @@ class Session {
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
         console.log(func);
         P[func](data);
-
-        // const date = moment(time).format(format);
-        // const avgPrice = parseFloat(cumQty) / parseFloat(cumFilledQty);
-        // console.log(`${date}, ${executionType}, ${symbol}, price: ${price}, qty: ${quantity}, side: ${side}, type: ${orderType} status: ${orderStatus}`);
-        // console.log(`Last executed price: ${L}, last quote asset transacted quantity (i.e. lastPrice * lastQty): ${Y}`);
-        // console.log(`Averageprice: ${avgPrice}`);
     }
 
-    /** open Trades Updates (Syncrhonous)
+    /** Place all initial buy orders
      *
-     * Open stream of updates for orders, trades, execution state, ect...
+     * @return {Promise<void>}
      */
-    openTradesUpdates() {
-        binance.websockets.userData(data => this.balanceUpdate(data, this), data => this.executionUpdate(data, this));
+    async placeFirstBuys() {
+        for (let pair in this.Pairs) {
+            const Pair = this.Pairs[pair];
+            await this.limiter.limit('push', 'place_buy_order', Pair);
+        }
     }
+
 }
 
 module.exports = Session;
