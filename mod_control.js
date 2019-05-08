@@ -37,14 +37,15 @@ const options = {
  */
 const start = async () => {
     const limiter = new Limiter();
-    S.createPairs(limiter, options);          // Create Pairs instances                                   ()
     const S = new Session();
+          S.createPairs(limiter, options);          // Create Pairs instances
     await S.setInfo();              // fetch exchange infos                                     (REST)
     await S.initBalances();         // fetch balances                                           (REST)
     // await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
-    // await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
-    await S.placeFirstBuys();
-
+    await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
+    // await S.placeFirstBuys();
+    S.parseDF(); // Read tresholds file
+    S.listenDF(); // Listen to tresholds file changes
 
     /** open Trades Updates (Synchronous)
      *

@@ -24,6 +24,9 @@ class Session {
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         this.Pairs = {};
+
+        if (os.platform() == 'win32') this.thresh_path = 'W:\\backtester4\\datasets\\main\\tresholds.json';
+        else this.thresh_path = 'home/jasmin/tresholds.json';
     }
 
     /**
@@ -231,6 +234,24 @@ class Session {
         }
     }
 
+    /**
+     * Read and parse tresholds file, then assign each pair.
+     */
+    parseDF() {
+        let raw = JSON.parse(fs.readFileSync(this.thresh_path));
+
+    }
+
+    /**
+     * Start listening to buy/sell_line file changes.
+     */
+    listenDF() {
+        let tresholds =
+        fs.watchFile(this.thresh_path, () => {
+            print('system', 'Tresholds change captured');
+            mult = JSON.parse(fs.readFileSync(this.thresh_path));
+        });
+    }
 }
 
 module.exports = Session;
