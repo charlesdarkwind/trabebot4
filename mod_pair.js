@@ -22,6 +22,7 @@ const openOrders = util.promisify(binance.openOrders);
 class Pair {
     constructor(pair, S) {
         this.S = S;
+        this.log_level = S.log_level;
         this.limiter = S.limiter;
         this.pair = pair;
         this.stop_time = 60 * 1000 * 60 * 5; // 5h
@@ -48,7 +49,7 @@ class Pair {
         this.last_sell_placed_time = Date.now();
     }
 
-    rnd(num, pair) {
+    rnd(num) {
         return Math.round(num * this.round) / this.round;
     }
 
@@ -72,51 +73,9 @@ class Pair {
         delete this.stopped_until;
     }
 
-    /**
-     * Calculate position size that can be bought considering what is already bought.
-     * Round it with respect to LOT_SIZE.
-     * Set the float converted as attribute
-     *
-     * @return {string} position size string
-     */
-    setPositionSize() {
-        const totalBTC = this.S.balance_btc_available + this.S.balance_btc_in_order;
-        const positionSizeMax = totalBTC / 70.5;
-        const positionSizeRaw = (positionSizeMax - this.total_balance * this.buy_line) / this.buy_line;
-        const positionSize = binance.roundStep(positionSizeRaw, P.stepSize);
-        this.position_size = parseFloat(position_size);
-        return positionSize;
+    getTotalBalance() {
+        return this.balance_available + this.balance_in_order;
     }
-
-    /**
-     Execution types:
-     NEW
-     CANCELED
-     REJECTED
-     TRADE
-     EXPIRED
-     {
-      "s": "ETHBTC",                 // Symbol *
-      "S": "BUY",                    // Side *
-      "o": "LIMIT",                  // Order type *
-      "q": "1.00000000",             // Order quantity *
-      "p": "0.10264410",             // Order price *
-      "C": "null",                   // Original client order ID; This is the ID of the order being canceled *
-      "x": "NEW",                    // Current execution type *    if status is FILLED, this will be TRADE
-      "X": "NEW",                    // Current order status *      FILLED CANCELED NEW
-      "r": "NONE",                   // Order reject reason; will be an error code. *
-      "i": 4293153,                  // Order ID *
-      "l": "0.00000000",             // Last executed quantity *
-      "z": "0.00000000",             // Cumulative filled quantity *
-      "L": "0.00000000",             // Last executed price *
-      "n": "0",                      // Commission amount *
-      "T": 1499405658657,            // Transaction time
-      "t": -1,                       // Trade ID
-      "O": 1499405658657,            // Order creation time
-      "Z": "0.00000000",             // Cumulative quote asset transacted quantity
-      "Y": "0.00000000"              // Last quote asset transacted quantity (i.e. lastPrice * lastQty) *
-    }
-     */
 
     /**
      * Shouldnt have more than 6 buys or errors per hour.
@@ -140,21 +99,25 @@ class Pair {
         return true;
     }
 
+    /**
+     * Calculate position size that can be bought considering what is already bought.
+     * Round it with respect to LOT_SIZE.
+     *
+     * Set the float converted position size as attribute
+     *
+     * @return {string} position size string
+     */
+    setPositionSize() {
+        const totalBTC = this.S.balance_btc_available + this.S.balance_btc_in_order;
+        this.positionSizeInBTC = totalBTC / this.S.options.position_divider;
+        this.positionSizeRawInCoin = (this.positionSizeInBTC - this.getTotalBalance() * this.buy_line) / this.buy_line;
 
-    NEW_LIMIT_BUY(data) {
-        this.buy_count++;
-        const price = parseFloat(data.p);
-        const qty = parseFloat(data.q);
-        this.buy_placed = true;
-        this.last_buy_line = this.buy_line;
-        this.order_id = data.i;
-        this.position_size = price / qty;
-        this.busy = false;
-        print(this.pair, `NEW_LIMIT_BUY at price: ${price}`);
-    }
+        const boughtQuantity = this.getTotalBalance();
+        let positionSize = binance.roundStep(this.positionSizeRawInCoin, this.stepSize);
+        positionSize -= boughtQuantity;
 
-    CANCELED_LIMIT_BUY() {
-        print(this.pair, `CANCELED_LIMIT_BUY`);
+        this.position_size = parseFloat(positionSize);
+        return positionSize; // str
     }
 
     /**
@@ -171,8 +134,6 @@ class Pair {
     // PARTIALLY_LIMIT_SEL
 
 
-
-
     async reveived_cancel_sell() {
         let err, res;
 
@@ -187,48 +148,32 @@ class Pair {
     }
 
 
-
     /**
      * wait 2 seconds in case other fill goes thru
      *
      * Needs 20% position size
      * at least 20% more qty than last order
      */
-    async place_sell_orders() {
+    async place_sell_order() {
         if (this.validate() !== true || this.percent_filled < 0.2) return;
         this.busy = true;
-        let err, res;
 
-        if (this.buy_filled === true) {
-            [err, res] = await to(sell(this.pair, this.setPositionSize(), this.sell_line, {type: 'LIMIT'}));
-            if (err) this.buyError(err);
-            else this.buy_count++;
-        }
+        await new Promise((resolve, reject) => {
 
-    }
+            if (this.log_level >= 3)
+                print(this.pair, 'Placing limit sell...');
 
-    /**
-     * Handle binance errors when buying
-     * Don't print -1015 stack
-     * @param {Object} e - Error object
-     */
-    buyError_buy(e) {
-        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
-            console.error(this.pair, '-1015');
-        } else {
-            this.error_count++;
-            this.buy_placed = false; // can now place again
-            print(pair, 'Error when placing Limit Buy.', err, this); // todo dumping this = huge log
-        }
-        this.busy = false;
-    }
+            binance.sell(this.pair, this.setPositionSize(), this.rnd(this.buy_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
+                if (e) this.buy_error(e);
+                else this.buy_success(res);
+                resolve();
+            });
+        });
 
-    async place_buy_order() {
-        this.busy = true;
-        let err, res;
+        [err, res] = await to(sell(this.pair, this.setPositionSize(), this.sell_line, {type: 'LIMIT'}));
+        if (err) this.buyError(err);
+        else this.buy_count++;
 
-        [err, res] = await to(buy(this.pair, this.setPositionSize(), this.buy_line, {type: 'LIMIT'}));
-        if (err) this.buyError_buy(err);
     }
 
     /** Triggered by all sell event functions => means theres room for buying.
@@ -238,15 +183,102 @@ class Pair {
      *  - State is valid? (not stopped)
      *  - Concurent count? (less than options.concurent_count_max)
      */
-    async handle_sell() {
+    // async handle_sell() {
+    //     const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
+    //     const isValid = this.validate();
+    //     const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
+    //
+    //     if (isValid && !is_in_queue && is_concurents_ok)
+    //         await this.limiter.limit('push', 'place_buy_order', this);
+    //     else if (this.log_level >= 2)
+    //         print(this.pair, `Cannot place buy. In queue? ${is_in_queue}, Valid? ${isValid}, Concurent? ${is_concurents_ok}`);
+    // }
+
+    CANCELED_LIMIT_BUY() {
+        print(this.pair, `CANCELED_LIMIT_BUY (WS response)`);
+    }
+
+    /////////////////////////////////////////////////////////
+    ///////////////////// PLACE BUY /////////////////////////
+    /////////////////////////////////////////////////////////
+
+    /**Handle binance errors when buying
+     *
+     * Don't print -1015 stack
+     * @param {Object} e - Error object
+     */
+    buy_error(e) {
+        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
+            console.error(this.pair, '-1015');
+        } else {
+            this.error_count++;
+            this.buy_placed = false; // can now place again
+
+            print(this.pair, 'Error when placing Limit Buy.', e);
+        }
+        this.busy = false;
+    }
+
+    buy_success(res) {
+
+        if (this.log_level >= 3)
+            print(this.pair, 'Limit Buy success (REST response)');
+
+        this.busy = false;
+    }
+
+    async place_buy_order() {
+        if (this.validate() !== true) return;
+        this.busy = true;
+
+        if (this.log_level >= 3)
+            print(this.pair, 'Placing limit buy...');
+
+        await new Promise((resolve, reject) => {
+            const positionSize = this.setPositionSize();
+
+            if (this.position_size)
+
+            binance.buy(this.pair, positionSize, this.rnd(this.buy_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
+                if (e) this.buy_error(e);
+                else this.buy_success(res);
+                resolve();
+            });
+        });
+    }
+
+    NEW_LIMIT_BUY(data) {
+        this.buy_count++;
+        const price = parseFloat(data.p);
+        const qty = parseFloat(data.q);
+        this.buy_placed = true;
+        this.last_buy_line = this.buy_line;
+        this.order_id = data.i;
+        this.position_size = price / qty;
+        this.busy = false;
+
+        if (this.log_level >= 2)
+            print(this.pair, `NEW_LIMIT_BUY at price: ${price} (WS response)`);
+    }
+
+    /////////////////////////////////////////////////////////
+    ///////////////////// BUY FILL //////////////////////////
+    /////////////////////////////////////////////////////////
+
+    /** Triggered by all buy event functions => means theres room for selling.
+     *
+     * Can it place a sell order?
+     *  - Whats in queue? (Just DONT place new one of same side)
+     *  - State is valid? (not stopped)
+     */
+    async handle_buy_fill() {
         const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
         const isValid = this.validate();
-        const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
 
         if (isValid && !is_in_queue && is_concurents_ok)
             await this.limiter.limit('push', 'place_buy_order', this);
-        else
-            print(this.pair, `Cant place buy order ${is_in_queue} ${isValid} ${is_concurents_ok}`); // todo remove / debug only
+        else if (this.log_level >= 2)
+            print(this.pair, `Cannot place sell. In queue? ${is_in_queue}, Valid? ${isValid}`);
     }
 
     PARTIALLY_FILLED_LIMIT_BUY(data) {
@@ -254,11 +286,14 @@ class Pair {
         this.last_executed_price = parseFloat(data.L);
         this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
         this.cummulative_qty_btc = parseFloat(data.Z);
-        this.percent_filled = Math.round(this.cummulative_qty_btc / this.position_size * 100);
+        this.percent_filled = Math.round(this.cummulative_qty_btc / this.positionSizeInBTC * 100);
         this.order_id = data.i;
+
+        console.log(data);
+
         print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
 
-        this.handle_sell();
+        this.handle_buy_fill();
     }
 
     FILLED_LIMIT_BUY(data) {
@@ -266,9 +301,10 @@ class Pair {
         this.buy_placed = false;
         this.buy_filled = true;
         this.order_id = data.i;
-        print(this.pair, `FILLED_LIMIT_BUY ${last_executed_qty_btc} btc (${percent_filled}%) at price: ${last_executed_price}`);
 
-        this.handle_sell();
+        print(this.pair, `FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+
+        this.handle_buy_fill();
     }
 }
 

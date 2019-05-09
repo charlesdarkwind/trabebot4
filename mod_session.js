@@ -1,11 +1,12 @@
 const os = require('os');
 const binance = require('./binance');
 const fs = require('fs');
+const moment = require('moment');
 const {print} = require('./mod_helpers');
 const {spawn} = require('child_process');
 const Pair = require('./mod_pair');
 const util = require('util');
-const readFile = util.promisify(fs.readFile);
+// const readFile = util.promisify(fs.readFile);
 // const writeFile = util.promisify(fs.writeFile);
 const getExchangeInfos = util.promisify(binance.exchangeInfo);
 const getBalances = util.promisify(binance.balance);
@@ -20,13 +21,16 @@ class Session {
     constructor(limiter, options) {
         this.limiter = limiter;
         this.options = options;
+        this.log_level = options.log_level;
         this.concurrent_count = 0;
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         this.Pairs = {};
 
-        if (os.platform() == 'win32') this.thresh_path = 'W:\\backtester4\\datasets\\main\\tresholds.json';
-        else this.thresh_path = 'home/jasmin/tresholds.json';
+        if (os.platform() == 'win32')
+            this.thresh_path = 'W:\\backtester4\\datasets\\main\\tresholds.json';
+        else
+            this.thresh_path = 'home/jasmin/tresholds.json';
     }
 
     /**
@@ -48,9 +52,10 @@ class Session {
         for (const pair in this.Pairs) {
             const P = this.Pairs[pair];
             const info = this.exchangeInfos.symbols.find(pair => pair.symbol === P.pair);
-            const filters = info.filters.find(obj => obj.filterType === 'PRICE_FILTER');
-            P.ticksize = parseFloat(filters.tickSize);
-            P.precision = filters.tickSize.split('.')[1].length | 0;
+            const PRICE_FILTERS = info.filters.find(obj => obj.filterType === 'PRICE_FILTER');
+            P.stepSize = info.filters.find(obj => obj.filterType == 'LOT_SIZE').stepSize;
+            P.ticksize = parseFloat(PRICE_FILTERS.tickSize);
+            P.precision = PRICE_FILTERS.tickSize.split('.')[1].split('1')[0].length + 1 || 0;
             P.round = 10 ** P.precision;
         }
     }
@@ -62,7 +67,7 @@ class Session {
      * @return {Promise<void>}
      */
     async initBalances() {
-        const balances = await getBalances;
+        const balances = await getBalances();
         for (const asset in balances) {
             const pair = asset + 'BTC';
             if (this.pairs.includes(pair)) {
@@ -70,8 +75,8 @@ class Session {
                 P.balance_available = parseFloat(balances[asset].available);
                 P.balance_in_order = parseFloat(balances[asset].onOrder);
             } else if (asset === 'BTC') {
-                this.balance_btc_available = parseFloat(balances[asset].available) | undefined;
-                this.balance_btc_in_order = parseFloat(balances[asset].onOrder) | undefined;
+                this.balance_btc_available = parseFloat(balances[asset].available) || 0;
+                this.balance_btc_in_order = parseFloat(balances[asset].onOrder) || 0;
             }
         }
     }
@@ -191,35 +196,12 @@ class Session {
 
     /** Execution Update:
      *
-     Types: NEW CANCELED REJECTED TRADE EXPIRED
-     "E": 1499405658658,            // Event time *
-     "s": "ETHBTC",                 // Symbol *
-     "c": "mUvoqJxFIILMdfAW5iGSOW", // Client order ID
-     "S": "BUY",                    // Side *
-     "o": "LIMIT",                  // Order type *
-     "q": "1.00000000",             // Order quantity *
-     "p": "0.10264410",             // Order price *
-     "C": "null",                   // Original client order ID; This is the ID of the order being canceled *
-     "x": "NEW",                    // Current execution type *    if status is FILLED, this will be TRADE
-     "X": "NEW",                    // Current order status *      FILLED CANCELED NEW
-     "r": "NONE",                   // Order reject reason; will be an error code. *
-     "i": 4293153,                  // Order ID *
-     "l": "0.00000000",             // Last executed quantity *
-     "z": "0.00000000",             // Cumulative filled quantity *
-     "L": "0.00000000",             // Last executed price *
-     "n": "0",                      // Commission amount *
-     "T": 1499405658657,            // Transaction time
-     "t": -1,                       // Trade ID
-     "O": 1499405658657,            // Order creation time
-     "Z": "0.00000000",             // Cumulative quote asset transacted quantity
-     "Y": "0.00000000"              // Last quote asset transacted quantity (i.e. lastPrice * lastQty)
      */
     executionUpdate(data, S) { // todo will spam a lot in partial fills
         const pair = data.s;
         if (!S.pairs.includes(pair)) return;
         const P = S.Pairs[pair];
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
-        console.log(func);
         P[func](data);
     }
 
@@ -228,6 +210,7 @@ class Session {
      * @return {Promise<void>}
      */
     async placeFirstBuys() {
+        // await this.limiter.limit('push', 'place_buy_order', this.Pairs['ZENBTC']);
         for (let pair in this.Pairs) {
             const Pair = this.Pairs[pair];
             await this.limiter.limit('push', 'place_buy_order', Pair);
@@ -235,22 +218,33 @@ class Session {
     }
 
     /**
-     * Read and parse tresholds file, then assign each pair.
+     * Read and parse tresholds file from PY_2/backtester4, then assign each pair.
+     *
+     * Expected raw JSON format:
+     * {
+     *     "time": [],
+     *     "ADABTC": {
+     *         "buy_line": [],
+     *         "sell_line": []
+     *     }
+     * }
      */
     parseDF() {
-        let raw = JSON.parse(fs.readFileSync(this.thresh_path));
+        this.tresholds = JSON.parse(fs.readFileSync(this.thresh_path));
+        for (const pair in this.Pairs) {
+            const Pair = this.Pairs[pair];
+            const len = this.tresholds[pair].sell_line.length;
+            Pair.sell_line = this.tresholds[pair].sell_line[len - 1];
+            Pair.buy_line = this.tresholds[pair].buy_line[len - 1];
+            // print(pair, `sell line: ${Pair.sell_line}, buy line: ${Pair.buy_line} ${this.tresholds['time'][len - 1]}`);
+        }
 
-    }
-
-    /**
-     * Start listening to buy/sell_line file changes.
-     */
-    listenDF() {
-        let tresholds =
-        fs.watchFile(this.thresh_path, () => {
-            print('system', 'Tresholds change captured');
-            mult = JSON.parse(fs.readFileSync(this.thresh_path));
-        });
+        const or = this.tresholds['time'].sort((a, b) => a - b);
+        const oldest = moment(or[0]).format('MMM D, H:mm');
+        const soonest = moment(or[or.length - 1]).format('MMM D, H:mm');
+        print('system', `Retrieved tresholds:`);
+        print('system', `   Oldest: ${oldest}`);
+        print('system', `   Soonest: ${soonest}`);
     }
 }
 

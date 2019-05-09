@@ -2,7 +2,7 @@ const Binance = require('node-binance-api');
 const moment = require('moment');
 
 const binance = new Binance().options({
-    test: true,
+    // test: true,
     APIKEY: process.env.APIKEY,
     APISECRET: process.env.APISECRET,
     useServerTime: true,
