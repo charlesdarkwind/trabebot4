@@ -85,7 +85,7 @@ class Pair {
      * @return {boolean}
      */
     validate() {
-        if (this.busy === true) return false;
+        if (this.busy === true || this.cancelling_all_orders) return false;
         if (!this.stopped) {
             if (this.buy_count > 6 || this.error_count > 6) {
                 this.stop();
@@ -116,8 +116,22 @@ class Pair {
         let positionSize = binance.roundStep(this.positionSizeRawInCoin, this.stepSize);
         positionSize -= boughtQuantity;
 
+        // Set the float
         this.position_size = parseFloat(positionSize);
-        return positionSize; // str
+
+        // Return the string
+        return positionSize;
+    }
+
+    /**
+     * Check if position_size >= minNotional, (qty looking to buy)
+     * Check if bought quantity >= minNotional, (qty loking to sell)
+     * Check if total quantity >= minNotional, (qty loking to sell (full position) after cancel of sell order)
+     */
+    setMinNotionalState() {
+        this.position_size_is_over_min_notional = this.position_size >= this.minNotional; // !Needs fresh position_size!
+        this.quantity_in_order_is_over_min_notional = this.balance_available >= this.minNotional;
+        this.quantity_total_is_over_min_notional = this.getTotalBalance() >= this.minNotional;
     }
 
     /**
@@ -176,7 +190,7 @@ class Pair {
 
     }
 
-    /** Triggered by all sell event functions => means theres room for buying.
+    /** Triggered by all sell event functions => means theres room for re-buying.
      *
      * Can it place a buy order?
      *  - Whats in queue? (Just DONT place new one of same side)
@@ -194,15 +208,145 @@ class Pair {
     //         print(this.pair, `Cannot place buy. In queue? ${is_in_queue}, Valid? ${isValid}, Concurent? ${is_concurents_ok}`);
     // }
 
+    /////////////////////////////////////////////////////////
+    ///////////////////// CANCEL ALL ORDERS /////////////////
+    /////////////////////////////////////////////////////////
+
+    cancel_all_orders_error(e, side) {
+        this.error_count++;
+        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011)
+            print(this.pair, 'Unknown order -2011');
+        else
+            print(this.pair, `Cancell all ${side} orders error.`, e);
+    }
+
+    cancel_all_orders_success(res, side) {
+        if (this.log_level >= 2)
+            print(this.pair, `Cancelling all ${side} orders success`);
+        delete this.order_id;
+    }
+
+    async cancel_all_orders(orders, side) {
+        if (this.log_level >= 2)
+            print(this.pair, `Cancelling all ${side} orders`);
+
+        this.cancelling_all_orders = true;  // For WS response CANCEL_LIMIT_BUY spam
+
+        await Promise.all(orders.map(order => {
+            return new Promise((resolve, reject) => {
+                binance.cancel(this.pair, order.orderId, (e, res, symbol) => {
+                    if (e) this.cancel_all_orders_error(e);
+                    else this.cancel_all_orders_success(res);
+                    resolve();
+                });
+            });
+        }));
+
+        this.cancelling_all_orders = false;
+        this.busy = false;
+    };
+
+    /////////////////////////////////////////////////////////
+    ///////////////////// GET ORDERS ////////////////////////
+    /////////////////////////////////////////////////////////
+
+    async get_orders_error(e) {
+        this.error_count++;
+        print(this.pair, 'Error when querying open orders', err);
+    }
+
+    async get_orders() {
+        await new Promise((resolve, reject) => {
+            binance.openOrders(this.pair, (e, openOrders) => {
+                if (e) this.get_orders_error(e);
+                else resolve(openOrders);
+            });
+        });
+    }
+
+    async check_buy_orders() {
+        const orders = await this.get_orders();
+        const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == this.pair);
+
+        if (buyOrders.length >= 2) {
+            this.error_count++;
+            print(this.pair, 'CHECK: 2 orders or more, canceling all...');
+            await this.cancel_all_orders(buyOrders, 'buy');
+
+            // Order was there with another ID, cancel it
+        } else if (buyOrders.length == 1) {
+            this.error_count++;
+            this.order_id = buyOrders[0].orderId;
+            print(this.pair, 'CHECK: order found with different ID, canceling...');
+            await this.cancel_buy();
+        }
+    }
+
+    /////////////////////////////////////////////////////////
+    ///////////////////// CANCEL BUY ////////////////////////
+    /////////////////////////////////////////////////////////
+
+    async cancel_error(e) {
+        this.error_count++;
+        print(symbol, 'Error when canceling buy order, checking orders...', err);
+        await this.check_buy_orders();
+    }
+
+    cancel_success(res) {
+        if (this.log_level >= 2)
+            print(symbol, 'Cancel buy order (REST response)');
+        delete this.order_id;
+    }
+
+    /**
+     * Try canceling known this.order_id
+     *
+       cancel buy order
+         not there? ->
+            get all orders ->
+                cancel all buy orders ->
+                    continue (delete this.order_id)
+         there? ->
+            continue (delete this.order_id)
+
+        then ->
+            busy = false
+     *
+     * @return {Promise<void>}
+     */
+    async cancel_buy() {
+        await new Promise((resolve, reject) => {
+            binance.cancel(this.pair, this.order_id, (e, res, symbol) => {
+                if (e) this. cancel_error(e);
+                else this.cancel_success(res);
+                resolve();
+            });
+        });
+    };
+
     CANCELED_LIMIT_BUY() {
-        print(this.pair, `CANCELED_LIMIT_BUY (WS response)`);
+        if (this.log_level >= 2)
+            print(this.pair, `CANCELED_LIMIT_BUY (WS response)`);
+
+        // Can place again?
+        this.setPositionSize();
+        this.setMinNotionalState();
+        // minNotional ?
+        if (this.position_size_is_over_min_notional) {
+            this.buy_placed = false; // can now place again
+            if (this.log_level >= 3)
+                print(this.pair, 'Still has room for buy order.');
+        }
+
+        if (!this.cancelling_all_orders)
+            this.busy = false;
     }
 
     /////////////////////////////////////////////////////////
     ///////////////////// PLACE BUY /////////////////////////
     /////////////////////////////////////////////////////////
 
-    /**Handle binance errors when buying
+    /** Handle binance errors when buying
      *
      * Don't print -1015 stack
      * @param {Object} e - Error object
@@ -212,21 +356,35 @@ class Pair {
             console.error(this.pair, '-1015');
         } else {
             this.error_count++;
-            this.buy_placed = false; // can now place again
-
             print(this.pair, 'Error when placing Limit Buy.', e);
+
+            // Can place again?
+            this.setPositionSize();
+            this.setMinNotionalState();
+            // minNotional ?
+            if (this.position_size_is_over_min_notional) {
+                this.buy_placed = false; // can now place again
+                if (this.log_level >= 3)
+                    print(this.pair, 'Still has room for buy order.');
+            }
         }
         this.busy = false;
     }
 
     buy_success(res) {
-
         if (this.log_level >= 3)
             print(this.pair, 'Limit Buy success (REST response)');
-
-        this.busy = false;
     }
 
+    /** BUY
+     *
+     * conditions
+     *  - Is not stopped or busy
+     *  - quantity of position_size would be over minNotional
+     *  - concurrent count
+     *
+     * @return {Promise<void>}
+     */
     async place_buy_order() {
         if (this.validate() !== true) return;
         this.busy = true;
@@ -234,16 +392,34 @@ class Pair {
         if (this.log_level >= 3)
             print(this.pair, 'Placing limit buy...');
 
+        // Set and get position_size
+        const positionSize = this.setPositionSize();
+
+        // Check min notional
+        this.setMinNotionalState();
+        if (!this.position_size_is_over_min_notional) {
+            if (this.log_level >= 3)
+                print(this.pair, 'Position size of buy would be under minNotional, not buying.');
+            this.busy = false;
+            return;
+        }
+
+        // Check conc count
+        if (this.S.getConcurrent() !== true) {
+            if (this.log_level >= 3)
+                print(this.pair, 'Concurrent count, not buying and canceling already placed buy order.');
+            await this.cancel_buy();
+            return;
+        }
+
+        // Place buy
         await new Promise((resolve, reject) => {
-            const positionSize = this.setPositionSize();
-
             if (this.position_size)
-
-            binance.buy(this.pair, positionSize, this.rnd(this.buy_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
-                if (e) this.buy_error(e);
-                else this.buy_success(res);
-                resolve();
-            });
+                binance.buy(this.pair, positionSize, this.rnd(this.buy_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
+                    if (e) this.buy_error(e);
+                    else this.buy_success(res);
+                    resolve();
+                });
         });
     }
 

@@ -54,6 +54,7 @@ class Session {
             const info = this.exchangeInfos.symbols.find(pair => pair.symbol === P.pair);
             const PRICE_FILTERS = info.filters.find(obj => obj.filterType === 'PRICE_FILTER');
             P.stepSize = info.filters.find(obj => obj.filterType == 'LOT_SIZE').stepSize;
+            P.minNotional = parseFloat(info.filters.find(obj => obj.filterType == 'MIN_NOTIONAL').minNotional);
             P.ticksize = parseFloat(PRICE_FILTERS.tickSize);
             P.precision = PRICE_FILTERS.tickSize.split('.')[1].split('1')[0].length + 1 || 0;
             P.round = 10 ** P.precision;
@@ -92,12 +93,17 @@ class Session {
         }
     }
 
+    /**
+     * Return bool of if conc count if OK
+     *
+     * @return {boolean}
+     */
     getConcurrent() {
         let count = 0;
         for (const p in this.Pairs) {
             if (this.Pairs[p].isConcurrent) count++;
         }
-        return count;
+        return count >= this.options.concurent_count_max;
     }
 
     /**

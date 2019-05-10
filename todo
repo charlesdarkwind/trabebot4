@@ -1,3 +1,18 @@
+urgent:
+    cancel on con count too high
+    this.buy_placed ?? what to do if false and stagning?
+
+
+cancel buy order
+    not there?
+        get all orders
+            cancel all buy orders
+            continue (delete this.order_id)
+    there?
+        continue (delete this.order_id)
+
+
+
 Centraliser logs sans besoin connexion
 
 Check how many open orders, prevent bug like last time.... (pm2 startup too)
