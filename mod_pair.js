@@ -89,7 +89,6 @@ class Pair {
      * @return {boolean}
      */
     validate() {
-        if (this.busy === true || this.cancelling_all_orders) return false;
         if (!this.stopped) {
             if (this.buy_count > 6 || this.error_count > 6) {
 
@@ -138,7 +137,7 @@ class Pair {
      */
     setMinNotionalState() {
         this.position_size_is_over_minNotional = this.position_size * this.buy_line >= this.minNotional; // !Needs fresh position_size!
-        this.quantity_available_is_over_minNotional = this.balance_available * this.sell_line >= this.minNotional;
+        this.quantity_available_is_over_minNotional = this.balance_available * this.sell_line >= this.minNotional; // todo this quantity is not rounded perfectly
         this.quantity_total_is_over_minNotional = this.getTotalBalance() * this.sell_line >= this.minNotional;
     }
 
@@ -249,7 +248,7 @@ class Pair {
 
     async cancel_buy_error(e) {
         this.error_count++;
-        print(this.pair, 'Error when canceling buy order, checking orders...', err);
+        print(this.pair, 'Error when canceling buy order, checking orders...', e);
         await this.check_buy_orders();
     }
 
@@ -360,7 +359,7 @@ class Pair {
         this.setMinNotionalState();
         if (!this.position_size_is_over_minNotional) {
             if (this.log_level >= 3)
-                print(this.pair, 'Position size of buy would be under minNotional, not buying.');
+                print(this.pair, 'Pos size of buy would be under minNot, not buying.');
             this.busy = false;
             return;
         }
@@ -368,7 +367,7 @@ class Pair {
         // Check conc count
         if (this.S.getConcurrent() !== true) {
             if (this.log_level >= 3)
-                print(this.pair, 'Concurrent count, not buying and canceling already placed buy order.');
+                print(this.pair, 'Concurrent count, not buying + canceling already placed buy');
             await this.cancel_buy();
             return;
         }
@@ -455,7 +454,6 @@ class Pair {
             print(this.pair, 'Placing limit sell...');
 
         await new Promise((resolve, reject) => {
-
             const qty = binance.roundStep(this.balance_available, this.stepSize);
 
             binance.sell(this.pair, qty, this.rnd(this.sell_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
@@ -503,6 +501,7 @@ class Pair {
     async handle_sell_fill() {
         const isValid = this.validate();
         const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
+        this.setMinNotionalState();
         const hasMinNot = this.quantity_total_is_over_minNotional;
         const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
 
@@ -520,11 +519,12 @@ class Pair {
             await this.limiter.limit('push', 'place_buy_order', this);
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place buy queue: queue ${is_in_queue} Valid ${isValid} Concurent ${is_concurents_ok} minNot ${hasMinNot}`);
+            print(this.pair, `Cant place buy queue: Valid ${isValid} queue ${is_in_queue} Concurent ${is_concurents_ok} minNot ${hasMinNot}`);
         }
     }
 
-    PARTIALLY_FILLED_LIMIT_SELL() {
+    async PARTIALLY_FILLED_LIMIT_SELL() {
+        await this.S.initBalances();
         this.isConcurrent = false;
         this.sell_order_id = data.i;
         this.last_executed_price = parseFloat(data.L); // only for logging
@@ -534,7 +534,8 @@ class Pair {
         this.handle_sell_fill();
     }
 
-    FILLED_LIMIT_SELL() {
+    async FILLED_LIMIT_SELL() {
+        await this.S.initBalances();
         this.isConcurrent = false;
         this.sell_placed = false;
         delete this.sell_order_id;
@@ -570,27 +571,33 @@ class Pair {
     async handle_buy_fill() {
         const isValid = this.validate();
         const is_in_queue = this.limiter.getInfo(Pair, 'place_sell_order') == true;
+        this.setMinNotionalState();
 
         if (isValid && !is_in_queue && this.quantity_available_is_over_minNotional) { // conditions
             this.busy = true;
 
             // Cancel other sell
-            if (this.sell_order_id)
+            if (this.sell_order_id) {
+                if (this.log_level >= 3)
+                    print(this.pair, 'Cancelling old sell order...');
+
                 await this.cancel_sell();
+            }
+
 
             if (this.log_level >= 3)
                 print(this.pair, 'Placing a sell order in queue...');
 
             // Place sell order in queue
-            await this.limiter.limit('unshift', 'place_sell_order', this);
+            await this.limiter.limit('push', 'place_sell_order', this);
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `${this.balance_available * this.sell_line} ${this.balance_available}`);
-            print(this.pair, `Cant place sell: queue ${is_in_queue} Valid ${isValid} minNot ${this.quantity_available_is_over_minNotional}`);
+            print(this.pair, `Cant place sell: Valid ${isValid} queue ${is_in_queue} minNot ${this.quantity_available_is_over_minNotional}`);
         }
     }
 
-    PARTIALLY_FILLED_LIMIT_BUY(data) {
+    async PARTIALLY_FILLED_LIMIT_BUY(data) {
+        await this.S.initBalances();
         this.isConcurrent = true;
         this.order_id = data.i;
         this.last_executed_price = parseFloat(data.L); // only for logging
@@ -600,15 +607,48 @@ class Pair {
         this.handle_buy_fill();
     }
 
-    FILLED_LIMIT_BUY(data) {
+    async FILLED_LIMIT_BUY(data) {
+        await this.S.initBalances();
         this.isConcurrent = true;
         this.buy_placed = false;
         delete this.order_id;
         this.last_executed_price = parseFloat(data.L); // only for logging
         this.percent_filled = 100;
 
-        print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price.toFixed(8)}`);
         this.handle_buy_fill();
+    }
+
+    /////////////////////////////////////////////////////////
+    //////////////// CANCEL FOR NEW PRICES //////////////////
+    /////////////////////////////////////////////////////////
+
+    hasBuyLineDiv() {
+        const div = this.last_buy_line / this.buy_line;
+        return div > 1.003 || div < 0.997;
+    }
+
+    hasSellLineDiv() {
+        const div = this.last_sell_line / this.sell_line;
+        return div > 1.003 || div < 0.997;
+    }
+
+    async handle_new_prices() {
+        return new Promise(async (resolve, reject) => {
+            if (this.order_id && this.hasBuyLineDiv()) {
+                // Cancel
+                await this.cancel_buy();
+                // Place
+                await this.place_buy_order()
+            }
+            if (this.sell_order_id && this.hasSellLineDiv()) {
+                // Cancel
+                await this.cancel_sell();
+                // Place
+                await this.place_sell_order();
+            }
+            resolve();
+        });
     }
 }
 

@@ -71,18 +71,21 @@ class Session {
      * @return {Promise<void>}
      */
     async initBalances() {
-        const balances = await getBalances();
-        for (const asset in balances) {
-            const pair = asset + 'BTC';
-            if (this.pairs.includes(pair)) {
-                const P = this.Pairs[pair];
-                P.balance_available = parseFloat(balances[asset].available);
-                P.balance_in_order = parseFloat(balances[asset].onOrder);
-            } else if (asset === 'BTC') {
-                this.balance_btc_available = parseFloat(balances[asset].available) || 0;
-                this.balance_btc_in_order = parseFloat(balances[asset].onOrder) || 0;
+        await new Promise(async (resolve, reject) => {
+            const balances = await getBalances();
+            for (const asset in balances) {
+                const pair = asset + 'BTC';
+                if (this.pairs.includes(pair)) {
+                    const P = this.Pairs[pair];
+                    P.balance_available = parseFloat(balances[asset].available);
+                    P.balance_in_order = parseFloat(balances[asset].onOrder);
+                } else if (asset === 'BTC') {
+                    this.balance_btc_available = parseFloat(balances[asset].available) || 0;
+                    this.balance_btc_in_order = parseFloat(balances[asset].onOrder) || 0;
+                }
             }
-        }
+            resolve();
+        });
     }
 
     /**
@@ -133,7 +136,7 @@ class Session {
             print('PY_1', 'Writing klines...');
 
             ls.stdout.on('data', msg => { // Number of new klines and symbol infos printed
-                print('PY_1', msg);
+                // print('PY_1', msg);
             });
 
             ls.stderr.on('data', data => {
@@ -171,7 +174,7 @@ class Session {
             print('PY_2', 'Recalcing DFs...');
 
             ls.stdout.on('data', msg => {
-                print('PY_2', msg);
+                // print('PY_2', msg);
             });
 
             ls.stderr.on('data', data => {
@@ -206,12 +209,11 @@ class Session {
     /** Execution Update:
      *
      */
-    executionUpdate(data, S) { // todo will spam a lot in partial fills
+    executionUpdate(data, S) {
         const pair = data.s;
         if (!S.pairs.includes(pair)) return;
         const P = S.Pairs[pair];
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
-        // print('func', func); // todo remove
         P[func](data);
     }
 

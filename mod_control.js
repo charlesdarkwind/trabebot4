@@ -12,11 +12,11 @@ process.on('uncaughtException', err => console.log(err));
 process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
 
 const options = {
-    log_level: 2, // 1: normal, 2: a bit spammy, 3: everything
+    log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
     concurent_count_max: 6,
     position_divider_default: 70.5,
     position_divider: 300,
-    num_pairs: 20
+    num_pairs: 10
 };
 
 /** START
@@ -73,11 +73,13 @@ const start = async () => {
 
     /**
      * INTERVAL: Decrement pairs buy & error counts every 10 mins
-     *
+     * INTERVAL: recalc dfs
      *
      * */
-    setInterval(() => {
+    setInterval(async () => {
         S.decrementCounts();
+        await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
+        await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
     }, 60000 * 10); // 10m
 };
 

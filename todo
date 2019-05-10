@@ -3,6 +3,7 @@ urgent:
     this.buy_placed ?? what to do if false and stagning?
     this.sell_placed same
 
+if (this.busy === true || this.cancelling_all_orders) return false;
 
 cancel buy order
     not there?

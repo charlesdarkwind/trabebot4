@@ -6,6 +6,15 @@ class Limiter {
         this.queue = [];
         this.refillInterval();
         this.checkQueueInterval();
+
+        this.t();
+    }
+
+    t() {
+        setInterval(() => {
+            const inQueue = this.queue.map(obj => obj.Pair.pair)
+            if (inQueue.length > 0) console.log('test: ', inQueue);
+        }, 3000);
     }
 
     /**
@@ -64,15 +73,20 @@ class Limiter {
      * @param args - obj
      */
     async limit(method, fn, Pair, ...args) {
-        // has token: execute now
-        if (this.token_count > 0) {
-            this.token_count--;
-            await Pair[fn](args);
-        } else {
-            // place in queue
-            print(Pair.pair, `Limiting...`);
-            this.queue[method]({fn, Pair, args});
-        }
+        return new Promise(async (resolve, reject) => {
+            // has token: execute now
+            if (this.token_count > 0) {
+                this.token_count--;
+                print(Pair.pair, fn); // todo remove
+                await Pair[fn](args);
+            } else {
+                // place in queue
+                print(Pair.pair, `Limiting...`);
+                this.queue[method]({fn, Pair, args});
+            }
+            resolve();
+        });
+
     }
 }
 
