@@ -133,7 +133,8 @@ class Session {
                 ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'}); // todo: fix path on vps
             }
 
-            print('PY_1', 'Writing klines...');
+            if (this.log_level >= 2)
+                print('PY_1', 'Writing klines...');
 
             ls.stdout.on('data', msg => { // Number of new klines and symbol infos printed
                 // print('PY_1', msg);
@@ -144,7 +145,8 @@ class Session {
             });
 
             ls.on('close', code => {
-                print('PY_1', `Python 1 process exited with code ${code}`);
+                if (this.log_level >= 2 || code != 0)
+                    print('PY_1', `Python 1 process exited with code ${code}`);
                 if (code !== 0) reject();
                 resolve();
             });
@@ -171,7 +173,8 @@ class Session {
                 ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/backtester4'});
             }
 
-            print('PY_2', 'Recalcing DFs...');
+            if (this.log_level >= 2)
+                print('PY_2', 'Recalcing DFs...');
 
             ls.stdout.on('data', msg => {
                 // print('PY_2', msg);
@@ -182,7 +185,8 @@ class Session {
             });
 
             ls.on('close', code => {
-                print('PY_2', `Python 2 process exited with code ${code}`);
+                if (this.log_level >= 2 || code != 0)
+                    print('PY_2', `Python 2 process exited with code ${code}`);
                 if (code !== 0) reject();
                 resolve();
             });
