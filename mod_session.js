@@ -25,6 +25,10 @@ class Session {
         this.concurrent_count = 0;
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
+
+        if (this.options.num_pairs < 70)
+            this.pairs = this.pairs.slice(0, this.options.num_pairs);
+
         this.Pairs = {};
 
         if (os.platform() == 'win32')
@@ -208,6 +212,7 @@ class Session {
         if (!S.pairs.includes(pair)) return;
         const P = S.Pairs[pair];
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
+        print('func', func); // todo remove
         P[func](data);
     }
 

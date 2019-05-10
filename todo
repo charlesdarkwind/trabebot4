@@ -1,6 +1,7 @@
 urgent:
     cancel on con count too high
     this.buy_placed ?? what to do if false and stagning?
+    this.sell_placed same
 
 
 cancel buy order

@@ -77,6 +77,10 @@ class Pair {
         return this.balance_available + this.balance_in_order;
     }
 
+    setFilledPercent() {
+        this.percent_filled = Math.round(this.getTotalBalance() / this.positionSizeInBTC * 100);
+    }
+
     /**
      * Shouldnt have more than 6 buys or errors per hour.
      * If the state is deemed incorrect, stop pair. If pair is already stopped,
@@ -133,9 +137,9 @@ class Pair {
      * Check if total quantity >= minNotional, (qty loking to sell (full position) after cancel of sell order)
      */
     setMinNotionalState() {
-        this.position_size_is_over_minNotional = this.position_size >= this.minNotional; // !Needs fresh position_size!
-        this.quantity_available_is_over_minNotional = this.balance_available >= this.minNotional;
-        this.quantity_total_is_over_minNotional = this.getTotalBalance() >= this.minNotional;
+        this.position_size_is_over_minNotional = this.position_size * this.buy_line >= this.minNotional; // !Needs fresh position_size!
+        this.quantity_available_is_over_minNotional = this.balance_available * this.buy_line >= this.minNotional;
+        this.quantity_total_is_over_minNotional = this.getTotalBalance() * this.buy_line >= this.minNotional;
     }
 
     /**
@@ -386,7 +390,7 @@ class Pair {
         this.buy_placed = true;
         this.last_buy_line = this.buy_line;
         this.order_id = data.i;
-        this.position_size = price / qty;
+        // this.position_size = price / qty;
         this.busy = false;
 
         if (this.log_level >= 2)
@@ -463,35 +467,85 @@ class Pair {
     }
 
     NEW_LIMIT_SELL(data) {
+        const price = parseFloat(data.p);
+        const qty = parseFloat(data.q);
+        this.sell_placed = true;
+        this.last_sell_line = this.sell_line;
+        this.sell_order_id = data.i;
+        this.busy = false;
 
+        if (this.log_level >= 2)
+            print(this.pair, `NEW_LIMIT_SELL at price: ${price} (WS response)`);
     }
 
     /////////////////////////////////////////////////////////
     ///////////////////// SELL FILL /////////////////////////
     /////////////////////////////////////////////////////////
 
-
     /** Triggered by all sell event functions => means theres room for re-buying.
      *
-     * Can it place a buy order?
-     *  - Whats in queue? (Just DONT place new one of same side)
-     *  - State is valid? (not stopped)
-     *  - Concurent count? (less than options.concurent_count_max)
+     * conditions (Can it place a buy order) ->
+     *      - State is valid? (not stopped)
+     *      + Concurent count? (less than options.concurent_count_max)
+     *      - minNotional (total coin >= minNotional)
+     *      - Whats in queue? (DONT place new BUY)
+     *
+     *  gucci? ->
+     *      cancel buy order ->
+     *          err? ->
+     *              get orders // check orders ->
+     *                  cancel orders ->
+     *                      continue (delete order id and place buy)
+     *          no err? ->
+     *              continue (delete order id and place buy)
+     *
      */
-    // async handle_sell_fill() {
-    //     const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
-    //     const isValid = this.validate();
-    //     const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
-    //
-    //     if (isValid && !is_in_queue && is_concurents_ok)
-    //         await this.limiter.limit('push', 'place_buy_order', this);
-    //     else if (this.log_level >= 2)
-    //         print(this.pair, `Cannot place buy. In queue? ${is_in_queue}, Valid? ${isValid}, Concurent? ${is_concurents_ok}`);
-    // }
+    async handle_sell_fill() {
+        const isValid = this.validate();
+        const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
+        const hasMinNot = this.quantity_total_is_over_minNotional;
+        const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
 
-    // NEW_LIMIT_SELL
-    // FILLED_LIMIT_SELL
-    // PARTIALLY_LIMIT_SELL
+        if (isValid && !is_in_queue && is_concurents_ok && hasMinNot) { // conditions
+            this.busy = true;
+
+            // Cancel other buy
+            if (this.order_id)
+                await this.cancel_buy();
+
+            if (this.log_level >= 3)
+                print(this.pair, 'Placing a buy order in queue...');
+
+            // Place buy order in queue
+            await this.limiter.limit('push', 'place_buy_order', this);
+
+        } else if (this.log_level >= 2) {
+            print(this.pair, `Cannot place buy. In queue? ${is_in_queue}, Valid? ${isValid}, Concurent? ${is_concurents_ok}, minNot? ${hasMinNot}`);
+        }
+    }
+
+    PARTIALLY_FILLED_LIMIT_SELL() {
+        this.isConcurrent = false;
+        this.sell_order_id = data.i;
+        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
+        this.setFilledPercent();
+
+        print(this.pair, `PARTIALLY_FILLED_LIMIT_SELL ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        this.handle_sell_fill();
+    }
+
+    FILLED_LIMIT_SELL() {
+        this.isConcurrent = false;
+        this.sell_placed = false;
+        delete this.sell_order_id;
+        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
+        this.percent_filled = 0;
+
+        print(this.pair, `FILLED_LIMIT_SELL ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        this.handle_sell_fill();
+    }
 
     /////////////////////////////////////////////////////////
     ///////////////////// BUY FILL //////////////////////////
@@ -500,9 +554,9 @@ class Pair {
     /** Triggered by all buy event functions => means theres room for re-selling.
      *
      *
-        conditions ->
+        conditions (Can it place a sell order) ->
             - State is valid? (not stopped or busy)
-            - Whats in queue? (DONT place new one)
+            - Whats in queue? (DONT place new SELL)
             - position size of sell (>= minNotional)
      *
      *  gucci? ->
@@ -517,19 +571,19 @@ class Pair {
      */
     async handle_buy_fill() {
         const isValid = this.validate();
-        const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
+        const is_in_queue = this.limiter.getInfo(Pair, 'place_sell_order') == true;
 
-        if (isValid
-            && !is_in_queue
-            && this.quantity_available_is_over_minNotional) { // conditions
+        if (isValid && !is_in_queue && this.quantity_available_is_over_minNotional) { // conditions
             this.busy = true;
+
+            // Cancel other sell
+            if (this.sell_order_id)
+                await this.cancel_sell();
 
             if (this.log_level >= 3)
                 print(this.pair, 'Placing a sell order in queue...');
 
-            if (this.sell_order_id)
-                await this.cancel_sell();
-
+            // Place sell order in queue
             await this.limiter.limit('unshift', 'place_sell_order', this);
 
         } else if (this.log_level >= 2) {
@@ -539,25 +593,24 @@ class Pair {
 
     PARTIALLY_FILLED_LIMIT_BUY(data) {
         this.isConcurrent = true;
-        this.last_executed_price = parseFloat(data.L);
-        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
-        this.cummulative_qty_btc = parseFloat(data.Z);
-        this.percent_filled = Math.round(this.cummulative_qty_btc / this.positionSizeInBTC * 100);
         this.order_id = data.i;
+        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
+        this.setFilledPercent();
 
         print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-
         this.handle_buy_fill();
     }
 
     FILLED_LIMIT_BUY(data) {
         this.isConcurrent = true;
         this.buy_placed = false;
-        this.buy_filled = true;
-        this.order_id = data.i;
+        delete this.order_id;
+        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
+        this.percent_filled = 100;
 
         print(this.pair, `FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-
         this.handle_buy_fill();
     }
 }
