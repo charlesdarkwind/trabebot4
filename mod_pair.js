@@ -287,7 +287,7 @@ class Pair {
 
     CANCELED_LIMIT_BUY() {
         if (this.log_level >= 2)
-            print(this.pair, `CANCELED_LIMIT_BUY (WS response)`);
+            print(this.pair, `CANCELED BUY (WS response)`);
 
         // Can place again (in case first order) ?
         this.setPositionSize();
@@ -394,7 +394,7 @@ class Pair {
         this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `NEW_LIMIT_BUY at price: ${price.toFixed(8)} (WS response)`);
+            print(this.pair, `NEW BUY at price: ${price.toFixed(8)} (WS response)`);
     }
 
     /////////////////////////////////////////////////////////
@@ -425,7 +425,7 @@ class Pair {
 
     CANCEL_LIMIT_SELL() {
         if (this.log_level >= 2)
-            print(this.pair, `CANCELED_LIMIT_SELL (WS response)`);
+            print(this.pair, `CANCELED SELL (WS response)`);
         if (!this.cancelling_all_orders)
             this.busy = false;
     }
@@ -475,7 +475,7 @@ class Pair {
         this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `NEW_LIMIT_SELL at price: ${price} (WS response)`);
+            print(this.pair, `NEW SELL at price: ${price} (WS response)`);
     }
 
     /////////////////////////////////////////////////////////
