@@ -635,15 +635,25 @@ class Pair {
 
     async handle_new_prices() {
         return new Promise(async (resolve, reject) => {
+
             if (this.order_id && this.hasBuyLineDiv()) {
+
                 // Cancel
+                if (this.log_level >= 3)
+                    print(this.pair, 'Cancelling buy for div...');
                 await this.cancel_buy();
+
                 // Place
                 await this.place_buy_order()
             }
+
             if (this.sell_order_id && this.hasSellLineDiv()) {
+
                 // Cancel
+                if (this.log_level >= 3)
+                    print(this.pair, 'Cancelling sell for div...');
                 await this.cancel_sell();
+
                 // Place
                 await this.place_sell_order();
             }
