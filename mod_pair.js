@@ -147,42 +147,6 @@ class Pair {
         print(this.pairs, `Err cancel resp`, err);
     }
 
-    // NEW_LIMIT_SELL
-    // FILLED_LIMIT_SELL
-    // PARTIALLY_LIMIT_SEL
-
-
-    async reveived_cancel_sell() {
-        let err, res;
-
-        [err, res] = await to(cancel(this.pair, this.tp_order_id));
-        if (err) {
-            this.error_count++;
-            print(symbol, `Error when cancel sell order for ${name}.`, err);
-
-            let err2, res2;  // REST: What happened?
-            [err2, res2] = await to(openOrders(this.pair));
-        }
-    }
-
-    /** Triggered by all sell event functions => means theres room for re-buying.
-     *
-     * Can it place a buy order?
-     *  - Whats in queue? (Just DONT place new one of same side)
-     *  - State is valid? (not stopped)
-     *  - Concurent count? (less than options.concurent_count_max)
-     */
-    // async handle_sell() {
-    //     const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
-    //     const isValid = this.validate();
-    //     const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
-    //
-    //     if (isValid && !is_in_queue && is_concurents_ok)
-    //         await this.limiter.limit('push', 'place_buy_order', this);
-    //     else if (this.log_level >= 2)
-    //         print(this.pair, `Cannot place buy. In queue? ${is_in_queue}, Valid? ${isValid}, Concurent? ${is_concurents_ok}`);
-    // }
-
     /////////////////////////////////////////////////////////
     ///////////////////// CANCEL ALL ORDERS /////////////////
     /////////////////////////////////////////////////////////
@@ -351,7 +315,7 @@ class Pair {
             this.error_count++;
             print(this.pair, 'Error when placing Limit Buy.', e);
 
-            // Can place again?
+            // Can place again (in case first order) ?
             this.setPositionSize();
             this.setMinNotionalState();
             // minNotional ?
@@ -466,15 +430,17 @@ class Pair {
     ///////////////////// PLACE SELL ////////////////////////
     /////////////////////////////////////////////////////////
 
-    sell_error(e) {
+    async sell_error(e) {
         this.error_count++;
-        print(this.pair, 'Error when placing Limit Sell.', e);
+        print(this.pair, 'Error when placing Limit Sell, retrying...', e);
 
-        // Can place again?
+        // try again ?
+        await this.handle_buy_fill();
     }
 
     sell_success(res) {
-
+        if (this.log_level >= 3)
+            print(this.pair, 'Limit sell success (REST response)');
     }
 
     async place_sell_order() {
@@ -496,6 +462,37 @@ class Pair {
         });
     }
 
+    NEW_LIMIT_SELL(data) {
+
+    }
+
+    /////////////////////////////////////////////////////////
+    ///////////////////// SELL FILL /////////////////////////
+    /////////////////////////////////////////////////////////
+
+
+    /** Triggered by all sell event functions => means theres room for re-buying.
+     *
+     * Can it place a buy order?
+     *  - Whats in queue? (Just DONT place new one of same side)
+     *  - State is valid? (not stopped)
+     *  - Concurent count? (less than options.concurent_count_max)
+     */
+    // async handle_sell_fill() {
+    //     const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
+    //     const isValid = this.validate();
+    //     const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
+    //
+    //     if (isValid && !is_in_queue && is_concurents_ok)
+    //         await this.limiter.limit('push', 'place_buy_order', this);
+    //     else if (this.log_level >= 2)
+    //         print(this.pair, `Cannot place buy. In queue? ${is_in_queue}, Valid? ${isValid}, Concurent? ${is_concurents_ok}`);
+    // }
+
+    // NEW_LIMIT_SELL
+    // FILLED_LIMIT_SELL
+    // PARTIALLY_LIMIT_SELL
+
     /////////////////////////////////////////////////////////
     ///////////////////// BUY FILL //////////////////////////
     /////////////////////////////////////////////////////////
@@ -503,7 +500,7 @@ class Pair {
     /** Triggered by all buy event functions => means theres room for re-selling.
      *
      *
-        check ->
+        conditions ->
             - State is valid? (not stopped or busy)
             - Whats in queue? (DONT place new one)
             - position size of sell (>= minNotional)
@@ -522,7 +519,9 @@ class Pair {
         const isValid = this.validate();
         const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
 
-        if (isValid && !is_in_queue && this.quantity_available_is_over_minNotional) {
+        if (isValid
+            && !is_in_queue
+            && this.quantity_available_is_over_minNotional) { // conditions
             this.busy = true;
 
             if (this.log_level >= 3)
