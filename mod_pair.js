@@ -78,7 +78,7 @@ class Pair {
     }
 
     setFilledPercent() {
-        this.percent_filled = Math.round(this.getTotalBalance() / this.positionSizeInBTC * 100);
+        this.percent_filled = Math.round(this.getTotalBalance() * this.buy_line / this.positionSizeInBTC * 100);
     }
 
     /**
@@ -138,8 +138,8 @@ class Pair {
      */
     setMinNotionalState() {
         this.position_size_is_over_minNotional = this.position_size * this.buy_line >= this.minNotional; // !Needs fresh position_size!
-        this.quantity_available_is_over_minNotional = this.balance_available * this.buy_line >= this.minNotional;
-        this.quantity_total_is_over_minNotional = this.getTotalBalance() * this.buy_line >= this.minNotional;
+        this.quantity_available_is_over_minNotional = this.balance_available * this.sell_line >= this.minNotional;
+        this.quantity_total_is_over_minNotional = this.getTotalBalance() * this.sell_line >= this.minNotional;
     }
 
     /**
@@ -249,13 +249,13 @@ class Pair {
 
     async cancel_buy_error(e) {
         this.error_count++;
-        print(symbol, 'Error when canceling buy order, checking orders...', err);
+        print(this.pair, 'Error when canceling buy order, checking orders...', err);
         await this.check_buy_orders();
     }
 
     cancel_buy_success(res) {
         if (this.log_level >= 2)
-            print(symbol, 'Cancel buy order (REST response)');
+            print(this.pair, 'Cancel buy order (REST response)');
         delete this.order_id;
     }
 
@@ -350,7 +350,7 @@ class Pair {
         if (this.validate() !== true) return;
         this.busy = true;
 
-        if (this.log_level >= 2)
+        if (this.log_level >= 3)
             print(this.pair, 'Placing limit buy...');
 
         // Set and get position_size
@@ -394,7 +394,7 @@ class Pair {
         this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `NEW_LIMIT_BUY at price: ${price} (WS response)`);
+            print(this.pair, `NEW_LIMIT_BUY at price: ${price.toFixed(8)} (WS response)`);
     }
 
     /////////////////////////////////////////////////////////
@@ -403,13 +403,13 @@ class Pair {
 
     async cancel_sell_error(e) {
         this.error_count++;
-        print(symbol, 'Error when canceling sell order, checking orders...', err);
+        print(this.pair, 'Error when canceling sell order, checking orders...', err);
         await this.check_sell_orders();
     }
 
     cancel_sell_success(res) {
         if (this.log_level >= 2)
-            print(symbol, 'Cancel sell order (REST response)');
+            print(this.pair, 'Cancel sell order (REST response)');
         delete this.sell_order_id;
     }
 
@@ -520,7 +520,7 @@ class Pair {
             await this.limiter.limit('push', 'place_buy_order', this);
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cannot place buy. In queue? ${is_in_queue}, Valid? ${isValid}, Concurent? ${is_concurents_ok}, minNot? ${hasMinNot}`);
+            print(this.pair, `Cant place buy queue: queue ${is_in_queue} Valid ${isValid} Concurent ${is_concurents_ok} minNot ${hasMinNot}`);
         }
     }
 
@@ -528,10 +528,9 @@ class Pair {
         this.isConcurrent = false;
         this.sell_order_id = data.i;
         this.last_executed_price = parseFloat(data.L); // only for logging
-        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
         this.setFilledPercent();
 
-        print(this.pair, `PARTIALLY_FILLED_LIMIT_SELL ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `PARTIALL FILLED SELL (${this.percent_filled}%) at price: ${this.last_executed_price}`);
         this.handle_sell_fill();
     }
 
@@ -540,10 +539,9 @@ class Pair {
         this.sell_placed = false;
         delete this.sell_order_id;
         this.last_executed_price = parseFloat(data.L); // only for logging
-        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
         this.percent_filled = 0;
 
-        print(this.pair, `FILLED_LIMIT_SELL ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `FILLED SELL (${this.percent_filled}%) at price: ${this.last_executed_price}`);
         this.handle_sell_fill();
     }
 
@@ -587,7 +585,8 @@ class Pair {
             await this.limiter.limit('unshift', 'place_sell_order', this);
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cannot place sell. In queue? ${is_in_queue}, Valid? ${isValid}, minNot? ${this.quantity_available_is_over_minNotional}`);
+            print(this.pair, `${this.balance_available * this.sell_line} ${this.balance_available}`);
+            print(this.pair, `Cant place sell: queue ${is_in_queue} Valid ${isValid} minNot ${this.quantity_available_is_over_minNotional}`);
         }
     }
 
@@ -595,10 +594,9 @@ class Pair {
         this.isConcurrent = true;
         this.order_id = data.i;
         this.last_executed_price = parseFloat(data.L); // only for logging
-        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
         this.setFilledPercent();
 
-        print(this.pair, `PARTIALLY_FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price}`);
         this.handle_buy_fill();
     }
 
@@ -607,10 +605,9 @@ class Pair {
         this.buy_placed = false;
         delete this.order_id;
         this.last_executed_price = parseFloat(data.L); // only for logging
-        this.last_executed_qty_btc = parseFloat(data.Y); // only for logging
         this.percent_filled = 100;
 
-        print(this.pair, `FILLED_LIMIT_BUY ${this.last_executed_qty_btc} btc (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price}`);
         this.handle_buy_fill();
     }
 }
