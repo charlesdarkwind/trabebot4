@@ -258,6 +258,10 @@ class Session {
         print('system', `   Oldest: ${oldest}`);
         print('system', `   Soonest: ${soonest}`);
     }
+
+    async handle_new_prices() {
+        return Promise.all(this.pairs.map(async pair => await this.Pairs[pair].handle_new_prices()));
+    }
 }
 
 module.exports = Session;

@@ -16,7 +16,7 @@ const options = {
     concurent_count_max: 6,
     position_divider_default: 70.5,
     position_divider: 300,
-    num_pairs: 10
+    num_pairs: 35
 };
 
 /** START
@@ -80,6 +80,7 @@ const start = async () => {
         S.decrementCounts();
         await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
         await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
+        await S.handle_new_prices();
     }, 60000 * 10); // 10m
 };
 
