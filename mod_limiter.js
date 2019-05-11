@@ -12,7 +12,7 @@ class Limiter {
 
     t() {
         setInterval(() => {
-            const inQueue = this.queue.map(obj => obj.Pair.pair)
+            const inQueue = this.queue.map(obj => obj.Pair.pair);
             if (inQueue.length > 0) console.log('test: ', inQueue);
         }, 3000);
     }

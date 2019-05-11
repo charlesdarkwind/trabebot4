@@ -25,12 +25,16 @@ class Session {
         this.concurrent_count = 0;
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.Pairs = {};
+        this.comp_name = process.env['COMPUTERNAME'];
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
             this.pairs = this.pairs.slice(0, this.options.num_pairs);
 
-        if (os.platform() == 'win32')
+
+        if (os.platform() == 'win32' && this.comp_name == 'JAS-PC')
+            this.thresh_path = 'W:\\backtester4\\datasets\\main\\tresholds.json';
+        else if (os.platform() == 'win32' && this.comp_name == 'JAS-VPS')
             this.thresh_path = 'W:\\backtester4\\datasets\\main\\tresholds.json';
         else
             this.thresh_path = 'home/jasmin/tresholds.json';
@@ -127,8 +131,10 @@ class Session {
         return await new Promise((resolve, reject) => {
 
             let ls = undefined;
-            if (os.platform() === 'win32') {
+            if (os.platform() === 'win32'&& this.comp_name == 'JAS-PC') {
                 ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\fetch_klines'});
+            } else if (this.comp_name == 'JAS-VPS' && this.comp_name == 'JAS-VPS') {
+                ls = spawn('python', ['mod_control.py'], {cwd: 'C:\\Users\\JAS\\Documents\\fetch_klines'});
             } else {
                 ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'}); // todo: fix path on vps
             }
@@ -153,6 +159,38 @@ class Session {
         });
     }
 
+    /**
+     * Read and parse tresholds file from PY_2/backtester4, then assign each pair.
+     *
+     * Expected raw JSON format:
+     * {
+     *     "time": [],
+     *     "ADABTC": {
+     *         "buy_line": [],
+     *         "sell_line": []
+     *     }
+     * }
+     */
+    parseDF() {
+        this.tresholds = JSON.parse(fs.readFileSync(this.thresh_path));
+        for (const pair in this.Pairs) {
+            const Pair = this.Pairs[pair];
+            const len = this.tresholds[pair].sell_line.length;
+            Pair.sell_line = this.tresholds[pair].sell_line[len - 1];
+            Pair.buy_line = this.tresholds[pair].buy_line[len - 1];
+            // print(pair, `sell line: ${Pair.sell_line}, buy line: ${Pair.buy_line} ${this.tresholds['time'][len - 1]}`);
+        }
+
+        if (this.log_level >= 2) {
+            const or = this.tresholds['time'].sort((a, b) => a - b);
+            const oldest = moment(or[0]).format('MMM D, H:mm');
+            const soonest = moment(or[or.length - 1]).format('MMM D, H:mm');
+            print('system', `Retrieved tresholds:`);
+            print('system', `   Oldest: ${oldest}`);
+            print('system', `   Soonest: ${soonest}`);
+        }
+    }
+
     /** call Df Recalc
      *
      * Calls the python process 2, calculating all models and dataframes, takes lots of time, about 1m.
@@ -166,7 +204,9 @@ class Session {
         return await new Promise((resolve, reject) => {
 
             let ls = undefined;
-            if (os.platform() === 'win32') {
+            if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
+                ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\backtester4\\sample'});
+            } else if (this.comp_name == 'JAS-VPS' && this.comp_name == 'JAS-VPS') {
                 ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\backtester4\\sample'});
             } else {
                 // todo: pair must be listed in [pairstotest] from the python mod_data script
@@ -188,6 +228,9 @@ class Session {
                 if (this.log_level >= 2 || code != 0)
                     print('PY_2', `Python 2 process exited with code ${code}`);
                 if (code !== 0) reject();
+
+                // Parse DFs
+                this.parseDF();
                 resolve();
             });
         });
@@ -218,7 +261,11 @@ class Session {
         if (!S.pairs.includes(pair)) return;
         const P = S.Pairs[pair];
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
-        P[func](data);
+        try {
+            P[func](data);
+        } catch (e) {
+            print('system', `${func}`);
+        }
     }
 
     /** Place all initial buy orders
@@ -233,38 +280,8 @@ class Session {
         }
     }
 
-    /**
-     * Read and parse tresholds file from PY_2/backtester4, then assign each pair.
-     *
-     * Expected raw JSON format:
-     * {
-     *     "time": [],
-     *     "ADABTC": {
-     *         "buy_line": [],
-     *         "sell_line": []
-     *     }
-     * }
-     */
-    parseDF() {
-        this.tresholds = JSON.parse(fs.readFileSync(this.thresh_path));
-        for (const pair in this.Pairs) {
-            const Pair = this.Pairs[pair];
-            const len = this.tresholds[pair].sell_line.length;
-            Pair.sell_line = this.tresholds[pair].sell_line[len - 1];
-            Pair.buy_line = this.tresholds[pair].buy_line[len - 1];
-            // print(pair, `sell line: ${Pair.sell_line}, buy line: ${Pair.buy_line} ${this.tresholds['time'][len - 1]}`);
-        }
-
-        const or = this.tresholds['time'].sort((a, b) => a - b);
-        const oldest = moment(or[0]).format('MMM D, H:mm');
-        const soonest = moment(or[or.length - 1]).format('MMM D, H:mm');
-        print('system', `Retrieved tresholds:`);
-        print('system', `   Oldest: ${oldest}`);
-        print('system', `   Soonest: ${soonest}`);
-    }
-
     async handle_new_prices() {
-        return Promise.all(this.pairs.map(async pair => await this.Pairs[pair].handle_new_prices()));
+        await Promise.all(this.pairs.map(async pair => await this.Pairs[pair].handle_new_prices()));
     }
 }
 

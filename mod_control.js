@@ -13,29 +13,21 @@ process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejectio
 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 6,
+    concurent_count_max: 4, // todo change
     position_divider_default: 70.5,
     position_divider: 300,
-    num_pairs: 35
+    num_pairs: 20
 };
 
 /** START
  *
- *
  * So when program starts, it:
- *
  *      1. Create pairs objs                                    ()
- *
  *      2. fetch exchange infos                                 (REST)
- *
  *      3. fetch balances                                       (REST)
- *
  *      4. Call python program 1, fetching missing klines       (REST   PYTHON)
- *
  *      5. Call python program 2, calculating dataframes        (PANDAS PYTHON)
- *
  *      6. Start order updates stream                           (WEB SOCKET)
- *
  *
  * @return {Promise<void>}
  */
@@ -45,9 +37,8 @@ const start = async () => {
           S.createPairs(limiter, options);          // Create Pairs instances
     await S.setInfo();              // fetch exchange infos                                     (REST)
     await S.initBalances();         // fetch balances                                           (REST)
-    // await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
-    // await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
-    S.parseDF();                    // Read tresholds file
+    await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
+    await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
 
     /** open Trades Updates (Synchronous)
      *
@@ -80,6 +71,7 @@ const start = async () => {
         S.decrementCounts();
         await S.callPythonKlines();     // Call python program 1, fetching missing klines           (REST   PYTHON)
         await S.callDfRecalc();         // Call python program 2, calculating dataframes            (PANDAS PYTHON)
+        await S.initBalances();         // Check balances before checking prices
         await S.handle_new_prices();
     }, 60000 * 10); // 10m
 };

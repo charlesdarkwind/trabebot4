@@ -47,6 +47,8 @@ class Pair {
         this.partial_fill_prices_buy = [];
         this.partial_fill_prices_sell = [];
         this.last_sell_placed_time = Date.now();
+        this.comp_name = process.env['COMPUTERNAME'];
+        this.first_buy = false;
     }
 
     rnd(num) {
@@ -78,6 +80,7 @@ class Pair {
     }
 
     setFilledPercent() {
+        print(this.pair, `${this.getTotalBalance()} ${this.buy_line} ${this.positionSizeInBTC}`); // todo remove
         this.percent_filled = Math.round(this.getTotalBalance() * this.buy_line / this.positionSizeInBTC * 100);
     }
 
@@ -198,7 +201,7 @@ class Pair {
     }
 
     async get_orders() { // both sell and buys
-        await new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
             binance.openOrders(this.pair, (e, openOrders) => {
                 if (e) this.get_orders_error(e);
                 else resolve(openOrders);
@@ -352,6 +355,12 @@ class Pair {
         if (this.log_level >= 3)
             print(this.pair, 'Placing limit buy...');
 
+        // Check balances again
+        if (!this.first_buy) {
+            this.first_buy = true;
+            await this.S.initBalances();
+        }
+
         // Set and get position_size
         const positionSize = this.setPositionSize();
 
@@ -437,7 +446,7 @@ class Pair {
         this.error_count++;
         print(this.pair, 'Error when placing Limit Sell, retrying...', e);
 
-        // try again ?
+        // try again
         await this.handle_buy_fill();
     }
 
@@ -452,6 +461,9 @@ class Pair {
 
         if (this.log_level >= 2)
             print(this.pair, 'Placing limit sell...');
+
+        // Check balances again
+        await this.S.initBalances();
 
         await new Promise((resolve, reject) => {
             const qty = binance.roundStep(this.balance_available, this.stepSize);
@@ -629,6 +641,7 @@ class Pair {
     }
 
     hasSellLineDiv() {
+        if (!this.last_sell_line) return false;
         const div = this.last_sell_line / this.sell_line;
         return div > 1.003 || div < 0.997;
     }
@@ -636,11 +649,15 @@ class Pair {
     async handle_new_prices() {
         return new Promise(async (resolve, reject) => {
 
+            // todo remove
+            // print(this.pair, `buy div: ${this.last_buy_line / this.buy_line},  sell div: ${this.last_sell_line ? this.last_sell_line / this.sell_line : 'no sell'}`);
+
             if (this.order_id && this.hasBuyLineDiv()) {
 
-                // Cancel
                 if (this.log_level >= 3)
                     print(this.pair, 'Cancelling buy for div...');
+
+                // Cancel
                 await this.cancel_buy();
 
                 // Place
@@ -649,9 +666,10 @@ class Pair {
 
             if (this.sell_order_id && this.hasSellLineDiv()) {
 
-                // Cancel
                 if (this.log_level >= 3)
                     print(this.pair, 'Cancelling sell for div...');
+
+                // Cancel
                 await this.cancel_sell();
 
                 // Place
