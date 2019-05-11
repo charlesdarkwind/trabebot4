@@ -1,7 +1,7 @@
 urgent:
-    cancel on con count too high
-    this.buy_placed ?? what to do if false and stagning?
-    this.sell_placed same
+    cant place buy if waiting cancel buy OR if waiting place buy ?
+    cant place sell if waiting cancel sell OR if waitingg place sell ?
+
 
 if (this.busy === true || this.cancelling_all_orders) return false;
 

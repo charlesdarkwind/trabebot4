@@ -16,7 +16,7 @@ const options = {
     concurent_count_max: 5, // todo change
     position_divider_default: 70.5,
     position_divider: 300,
-    num_pairs: 55
+    num_pairs: 70
 };
 
 /** START
@@ -57,7 +57,7 @@ const start = async () => {
         await S.setInfo();
     }, 60000 * 60 * 2);
 
-    /** 10 mins
+    /** 8 mins
      *  INTERVAL:
      *      1. Decrement pairs buy & error counts
      *      2. get klines
@@ -71,7 +71,7 @@ const start = async () => {
         await S.callDfRecalc();
         await S.initBalances();
         await S.handle_new_prices();
-    }, 60000 * 10);
+    }, 60000 * 8);
 
     /** 2 mins
      *  INTERVAL:

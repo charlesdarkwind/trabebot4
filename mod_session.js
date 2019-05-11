@@ -120,9 +120,9 @@ class Session {
         return count < this.options.concurent_count_max;
     }
 
-    /** Re-place buy order for pairs whom buy was canceled because the concurrent count max was reached
+    /** Re-place buy order for pairs whom buy was canceled because the concurrent count max was reached.
      *
-     * conditions:
+     * Conditions:
      *      - no longer max conc count
      *      - concurrent_cancel_buy prop is true (set it to false if proceeding)
      *      - no order ID prop
@@ -131,22 +131,22 @@ class Session {
      * @return {Promise<void>}
      */
     async handleStoppedForConcurrent() {
-        if (!getConcurrent()) return;
+        if (!this.getConcurrent()) return;
         if (this.concurrent_cancel_buy) this.concurrent_cancel_buy = false;
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             if (Pair.concurrent_cancel_buy && !Pair.order_id && !Pair.buy_placed) {
                 if (this.log_level >= 2)
                     print(pair, 'Concurrent count diminished, buying again');
-                await this.limiter.limit('push', 'place_buy_order', Pair);
+                await Pair.handle_place_buy();
                 Pair.concurrent_cancel_buy = false;
             }
         }));
     }
 
-    /** Check if buying orders should be canceled because of concurent count
+    /** Check if buy orders should be canceled because of concurent count.
      *
-     * conditions:
+     * Conditions:
      *      - max conc count reached
      *      - concurrent_cancel_buy prop is true (set it to true)
      *      - has either order_id or buy_placed
@@ -154,7 +154,7 @@ class Session {
      * @return {Promise<void>}
      */
     async handleConcurentCount() {
-        if (getConcurrent()) return;
+        if (this.getConcurrent()) return;
         if (!this.concurrent_cancel_buy) this.concurrent_cancel_buy = true;
         print('system', 'Concurent count reached!');
         await Promise.all(this.pairs.map(async pair => {

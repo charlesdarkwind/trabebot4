@@ -7,15 +7,15 @@ class Limiter {
         this.refillInterval();
         this.checkQueueInterval();
 
-        this.t();
+        // this.t();
     }
 
-    t() {
-        setInterval(() => {
-            const inQueue = this.queue.map(obj => obj.Pair.pair);
-            if (inQueue.length > 0) console.log('test: ', inQueue);
-        }, 3000);
-    }
+    // t() {
+    //     setInterval(() => {
+    //         const inQueue = this.queue.map(obj => obj.Pair.pair);
+    //         if (inQueue.length > 0) console.log('test: ', inQueue);
+    //     }, 3000);
+    // }
 
     /**
      * If queue contains same Pair and side order, return the obj.
@@ -50,14 +50,14 @@ class Limiter {
      * refill bucket interval
      */
     refillInterval() {
-        setInterval(this.refillBucket.bind(this), 100);
+        setInterval(this.refillBucket.bind(this), 105);
     }
 
     /**
      * re-run queue interval
      */
     checkQueueInterval() {
-        setInterval(this.runQueue.bind(this), 20);
+        setInterval(async () => await this.runQueue.bind(this), 20);
     }
 
     /** Limit an order

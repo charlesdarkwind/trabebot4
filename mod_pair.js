@@ -6,14 +6,6 @@ const util = require('util');
 const cancel = util.promisify(binance.cancel);
 const openOrders = util.promisify(binance.openOrders);
 
-// const EventEmitter = require('events');
-//
-// class MyEmitter extends EventEmitter {}
-//
-// const myEmitter = new MyEmitter();
-//
-
-
 /**
  * Pair object factory
  * @module charlesdarkwind/tradebot4
@@ -80,7 +72,6 @@ class Pair {
     }
 
     setFilledPercent() {
-        print(this.pair, `${this.getTotalBalance()} ${this.buy_line} ${this.positionSizeInBTC}`); // todo remove
         this.percent_filled = Math.round(this.getTotalBalance() * this.buy_line / this.positionSizeInBTC * 100);
     }
 
@@ -195,7 +186,7 @@ class Pair {
     ///////////////////// GET ORDERS ////////////////////////
     /////////////////////////////////////////////////////////
 
-    async get_orders_error(e) { // both sell and buys
+    get_orders_error(e) { // both sell and buys
         this.error_count++;
         print(this.pair, 'Error when querying open orders', err);
     }
@@ -402,6 +393,7 @@ class Pair {
         const price = parseFloat(data.p);
         const qty = parseFloat(data.q);
         this.last_buy_line = this.buy_line;
+        this.NEW_LIMIT_BUY_RECEIVED = true;
         this.order_id = data.i;
         this.buy_placed = true;
         this.busy = false;
@@ -452,7 +444,7 @@ class Pair {
         print(this.pair, 'Error when placing Limit Sell, retrying...', e);
 
         // try again
-        await this.handle_buy_fill();
+        await this.handle_place_sell();
     }
 
     sell_success(res) {
@@ -484,7 +476,7 @@ class Pair {
     NEW_LIMIT_SELL(data) {
         const price = parseFloat(data.p);
         const qty = parseFloat(data.q);
-        this.sell_placed = true;
+        this.NEW_LIMIT_SELL_RECEIVED = true;
         this.last_sell_line = this.sell_line;
         this.sell_order_id = data.i;
         this.busy = false;
@@ -497,7 +489,9 @@ class Pair {
     ///////////////////// SELL FILL /////////////////////////
     /////////////////////////////////////////////////////////
 
-    /** Triggered by all sell event functions => means theres room for re-buying.
+    /** Triggered by all sell event functions -> means theres room for re-buying.
+     *
+     * Handles all conditions before sending a request of buy order in the limiter
      *
      * conditions (Can it place a buy order) ->
      *      - State is valid? (not stopped)
@@ -515,11 +509,11 @@ class Pair {
      *              continue (delete order id and place buy)
      *
      */
-    async handle_sell_fill() {
+    async handle_place_buy() {
         const isValid = this.validate();
         const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
         this.setMinNotionalState();
-        const hasMinNot = this.quantity_total_is_over_minNotional;
+        const hasMinNot = this.position_size_is_over_minNotional; // todo should fetch balance before?
         const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
 
         if (isValid && !is_in_queue && is_concurents_ok && hasMinNot) { // conditions
@@ -548,7 +542,7 @@ class Pair {
         this.setFilledPercent();
 
         print(this.pair, `PARTIALL FILLED SELL (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-        this.handle_sell_fill();
+        this.handle_place_buy();
     }
 
     async FILLED_LIMIT_SELL() {
@@ -560,7 +554,7 @@ class Pair {
         this.percent_filled = 0;
 
         print(this.pair, `FILLED SELL (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-        this.handle_sell_fill();
+        this.handle_place_buy();
     }
 
     /////////////////////////////////////////////////////////
@@ -569,28 +563,27 @@ class Pair {
 
     /** Triggered by all buy event functions => means theres room for re-selling.
      *
-     *
-     conditions (Can it place a sell order) ->
-     - State is valid? (not stopped or busy)
-     - Whats in queue? (DONT place new SELL)
-     - position size of sell (>= minNotional)
+     *   conditions (Can it place a sell order) ->
+     *      - State is valid? (not stopped or busy)
+     *      - Whats in queue? (DONT place new SELL)
+     *      - position size of sell (>= minNotional)
      *
      *  gucci? ->
-     cancel sell order ->
-     err? ->
-     get orders // check orders ->
-     cancel orders ->
-     continue (delete order id and place sell)
-     no err? ->
-     continue (delete order id and place sell)
-
+     *      cancel sell order ->
+     *          err? ->
+     *              get orders // check orders ->
+     *                  cancel orders ->
+     *                      continue (delete order id and place sell)
+     *          no err? ->
+     *              continue (delete order id and place sell)
+     *
      */
-    async handle_buy_fill() {
+    async handle_place_sell() {
         const isValid = this.validate();
         const is_in_queue = this.limiter.getInfo(Pair, 'place_sell_order') == true;
         this.setMinNotionalState();
 
-        if (isValid && !is_in_queue && this.quantity_available_is_over_minNotional) { // conditions
+        if (isValid && !is_in_queue && this.quantity_total_is_over_minNotional) { // conditions
             this.busy = true;
 
             // Cancel other sell
@@ -601,7 +594,6 @@ class Pair {
                 await this.cancel_sell();
             }
 
-
             if (this.log_level >= 3)
                 print(this.pair, 'Placing a sell order in queue...');
 
@@ -609,7 +601,7 @@ class Pair {
             await this.limiter.limit('push', 'place_sell_order', this);
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place sell: Valid ${isValid} queue ${is_in_queue} minNot ${this.quantity_available_is_over_minNotional}`);
+            print(this.pair, `Cant place sell: Valid ${isValid} queue ${is_in_queue} minNot ${this.quantity_total_is_over_minNotional}`);
         }
     }
 
@@ -622,7 +614,7 @@ class Pair {
         this.setFilledPercent();
 
         print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price}`);
-        this.handle_buy_fill();
+        this.handle_place_sell();
     }
 
     async FILLED_LIMIT_BUY(data) {
@@ -634,7 +626,7 @@ class Pair {
         this.percent_filled = 100;
 
         print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price.toFixed(8)}`);
-        this.handle_buy_fill();
+        this.handle_place_sell();
     }
 
     /////////////////////////////////////////////////////////
@@ -655,9 +647,6 @@ class Pair {
     async handle_new_prices() {
         return new Promise(async (resolve, reject) => {
 
-            // todo remove
-            // print(this.pair, `buy div: ${this.last_buy_line / this.buy_line},  sell div: ${this.last_sell_line ? this.last_sell_line / this.sell_line : 'no sell'}`);
-
             if (this.order_id && this.hasBuyLineDiv()) {
 
                 if (this.log_level >= 3)
@@ -665,9 +654,8 @@ class Pair {
 
                 // Cancel
                 await this.cancel_buy();
-
                 // Place
-                await this.limiter.limit('push', 'place_buy_order', this);
+                await this.handle_place_buy();
             }
 
             if (this.sell_order_id && this.hasSellLineDiv()) {
@@ -677,9 +665,8 @@ class Pair {
 
                 // Cancel
                 await this.cancel_sell();
-
                 // Place
-                await this.limiter.limit('push', 'place_sell_order', this);
+                await this.handle_place_sell();
             }
             resolve();
         });
