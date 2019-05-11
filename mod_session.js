@@ -66,6 +66,9 @@ class Session {
             P.precision = PRICE_FILTERS.tickSize.split('.')[1].split('1')[0].length + 1 || 0;
             P.round = 10 ** P.precision;
         }
+
+        if (this.log_level >= 2)
+            print('system', 'New exchange infos queried')
     }
 
     /**
@@ -116,6 +119,28 @@ class Session {
         return count < this.options.concurent_count_max;
     }
 
+    /** Re-place buy order for pairs whom buy was canceled because the concurrent count max was reached
+     *
+     * conditions:
+     *      - no longer max conc count
+     *      - concurrent_cancel_buy prop is true (set it to false if proceeding)
+     *      - no order ID prop
+     *      - buy_placed propis false
+     *
+     * @return {Promise<void>}
+     */
+    async handleStoppedForConcurrent() {
+        if (!getConcurrent()) return;
+        await Promise.all(this.pairs.map(async pair => {
+            const Pair = this.Pairs[pair];
+            if (Pair.concurrent_cancel_buy && !Pair.order_id && !Pair.buy_placed) {
+                if (this.log_level >= 2)
+                    print(pair, 'Concurrent count diminished, buying again');
+                await this.limiter.limit('push', 'place_buy_order', Pair);
+            }
+        }));
+    }
+
     /**
      * callPythonKlines
      *
@@ -131,7 +156,7 @@ class Session {
         return await new Promise((resolve, reject) => {
 
             let ls = undefined;
-            if (os.platform() === 'win32'&& this.comp_name == 'JAS-PC') {
+            if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
                 ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\fetch_klines'});
             } else if (this.comp_name == 'JAS-VPS' && this.comp_name == 'JAS-VPS') {
                 ls = spawn('python', ['mod_control.py'], {cwd: 'C:\\Users\\JAS\\Documents\\fetch_klines'});

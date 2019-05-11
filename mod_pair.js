@@ -259,21 +259,22 @@ class Pair {
         if (this.log_level >= 2)
             print(this.pair, 'Cancel buy order (REST response)');
         delete this.order_id;
+        this.buy_placed = false;
     }
 
     /**
      * Try canceling known this.order_id
      *
-     cancel buy order
-     not there? ->
-     get all orders ->
-     cancel all buy orders ->
-     continue (delete this.order_id)
-     there? ->
-     continue (delete this.order_id)
-
-     then ->
-     busy = false
+     * cancel buy order
+     *  not there? ->
+     *      get all orders ->
+     *          cancel all buy orders ->
+     *              continue (delete this.order_id)
+     *  there? ->
+     *      continue (delete this.order_id)
+     *
+     *  then ->
+     *      busy = false
      *
      * @return {Promise<void>}
      */
@@ -314,22 +315,23 @@ class Pair {
      * Don't print -1015 stack
      * @param {Object} e - Error object
      */
-    buy_error(e) {
+    async buy_error(e) {
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
-            console.error(this.pair, '-1015');
+            print(this.pair, '-1015');
         } else {
             this.error_count++;
             print(this.pair, 'Error when placing Limit Buy.', e);
+        }
+        // Can place again (in case first order) ?
+        // minNotional ?
+        this.setPositionSize();
+        this.setMinNotionalState();
+        if (this.position_size_is_over_minNotional) {
 
-            // Can place again (in case first order) ?
-            this.setPositionSize();
-            this.setMinNotionalState();
-            // minNotional ?
-            if (this.position_size_is_over_minNotional) {
-                this.buy_placed = false; // can now place again
-                if (this.log_level >= 3)
-                    print(this.pair, 'Still has room for buy order.');
-            }
+            if (this.log_level >= 3)
+                print(this.pair, 'Re-trying buy order.');
+
+            await this.limiter.limit('push', 'place_buy_order', this);
         }
         this.busy = false;
     }
@@ -378,6 +380,7 @@ class Pair {
             if (this.log_level >= 3)
                 print(this.pair, 'Concurrent count, not buying + canceling already placed buy');
             await this.cancel_buy();
+            this.concurrent_cancel_buy = true;
             return;
         }
 
@@ -565,19 +568,19 @@ class Pair {
     /** Triggered by all buy event functions => means theres room for re-selling.
      *
      *
-        conditions (Can it place a sell order) ->
-            - State is valid? (not stopped or busy)
-            - Whats in queue? (DONT place new SELL)
-            - position size of sell (>= minNotional)
+     conditions (Can it place a sell order) ->
+     - State is valid? (not stopped or busy)
+     - Whats in queue? (DONT place new SELL)
+     - position size of sell (>= minNotional)
      *
      *  gucci? ->
-            cancel sell order ->
-                err? ->
-                    get orders // check orders ->
-                        cancel orders ->
-                            continue (delete order id and place sell)
-                no err? ->
-                    continue (delete order id and place sell)
+     cancel sell order ->
+     err? ->
+     get orders // check orders ->
+     cancel orders ->
+     continue (delete order id and place sell)
+     no err? ->
+     continue (delete order id and place sell)
 
      */
     async handle_buy_fill() {
@@ -661,7 +664,7 @@ class Pair {
                 await this.cancel_buy();
 
                 // Place
-                await this.place_buy_order()
+                await this.limiter.limit('push', 'place_buy_order', this);
             }
 
             if (this.sell_order_id && this.hasSellLineDiv()) {
@@ -673,7 +676,7 @@ class Pair {
                 await this.cancel_sell();
 
                 // Place
-                await this.place_sell_order();
+                await this.limiter.limit('push', 'place_sell_order', this);
             }
             resolve();
         });
