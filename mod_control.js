@@ -13,10 +13,10 @@ process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejectio
 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 4, // todo change
+    concurent_count_max: 5, // todo change
     position_divider_default: 70.5,
     position_divider: 300,
-    num_pairs: 20
+    num_pairs: 55
 };
 
 /** START
@@ -55,7 +55,7 @@ const start = async () => {
      * */
     setInterval(async () => {
         await S.setInfo();
-    }, update, 60000 * 60 * 2);
+    }, 60000 * 60 * 2);
 
     /** 10 mins
      *  INTERVAL:
