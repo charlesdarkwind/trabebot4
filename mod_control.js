@@ -77,19 +77,18 @@ const start = async () => {
      *  INTERVAL:
      *      - Re-start pairs with no buys because of:
      *          - Concurent count buy cancel
-     *          - todo?
      */
     setInterval(async () => {
         await S.handleStoppedForConcurrent();
     }, 60000 * 2);
 
-    /** 1 sec
+    /** 30 sec
      *  INTERVAL:
-     *      - Check concurent count, stop all orders if busted
+     *      - Check concurent count, stop all orders if busted. (Its already being checked before every order placement)
      */
     setInterval(async () => {
-
-    }, 1000);
+        await S.handleConcurentCount();
+    }, 30000);
 };
 
 start();

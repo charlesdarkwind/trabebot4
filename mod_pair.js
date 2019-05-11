@@ -379,7 +379,10 @@ class Pair {
         if (this.S.getConcurrent() !== true) {
             if (this.log_level >= 3)
                 print(this.pair, 'Concurrent count, not buying + canceling already placed buy');
-            await this.cancel_buy();
+
+            // Check for concurent count handling, canceling every buys of every orders
+            await this.S.handleConcurentCount();
+
             this.concurrent_cancel_buy = true;
             return;
         }
@@ -398,10 +401,9 @@ class Pair {
         this.buy_count++;
         const price = parseFloat(data.p);
         const qty = parseFloat(data.q);
-        this.buy_placed = true;
         this.last_buy_line = this.buy_line;
         this.order_id = data.i;
-        // this.position_size = price / qty;
+        this.buy_placed = true;
         this.busy = false;
 
         if (this.log_level >= 2)
@@ -615,6 +617,7 @@ class Pair {
         await this.S.initBalances();
         this.isConcurrent = true;
         this.order_id = data.i;
+        this.buy_placed = true;
         this.last_executed_price = parseFloat(data.L); // only for logging
         this.setFilledPercent();
 

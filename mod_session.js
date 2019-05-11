@@ -26,6 +26,7 @@ class Session {
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.Pairs = {};
         this.comp_name = process.env['COMPUTERNAME'];
+        this.concurrent_cancel_buy = false;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -125,18 +126,48 @@ class Session {
      *      - no longer max conc count
      *      - concurrent_cancel_buy prop is true (set it to false if proceeding)
      *      - no order ID prop
-     *      - buy_placed propis false
+     *      - buy_placed prop is false
      *
      * @return {Promise<void>}
      */
     async handleStoppedForConcurrent() {
         if (!getConcurrent()) return;
+        if (this.concurrent_cancel_buy) this.concurrent_cancel_buy = false;
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             if (Pair.concurrent_cancel_buy && !Pair.order_id && !Pair.buy_placed) {
                 if (this.log_level >= 2)
                     print(pair, 'Concurrent count diminished, buying again');
                 await this.limiter.limit('push', 'place_buy_order', Pair);
+                Pair.concurrent_cancel_buy = false;
+            }
+        }));
+    }
+
+    /** Check if buying orders should be canceled because of concurent count
+     *
+     * conditions:
+     *      - max conc count reached
+     *      - concurrent_cancel_buy prop is true (set it to true)
+     *      - has either order_id or buy_placed
+     *
+     * @return {Promise<void>}
+     */
+    async handleConcurentCount() {
+        if (getConcurrent()) return;
+        if (!this.concurrent_cancel_buy) this.concurrent_cancel_buy = true;
+        print('system', 'Concurent count reached!');
+        await Promise.all(this.pairs.map(async pair => {
+            const Pair = this.Pairs[pair];
+            if (!Pair.concurrent_cancel_buy && (Pair.order_id || Pair.buy_placed)) {
+                if (this.log_level >= 2)
+                    print(pair, 'Concurrent count reached and pair may have orders, canceling...');
+                // Fetch all buy orders
+                const orders = await Pair.get_orders();
+                const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == pair);
+                // Cancel all buy orders
+                await Pair.cancel_all_orders(buyOrders, 'buy');
+                Pair.concurrent_cancel_buy = true;
             }
         }));
     }
