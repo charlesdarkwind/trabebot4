@@ -41,6 +41,8 @@ class Pair {
         this.last_sell_placed_time = Date.now();
         this.comp_name = process.env['COMPUTERNAME'];
         this.first_buy = false;
+        this.buy_try_count = 0;
+        this.sell_try_count = 0;
     }
 
     rnd(num) {
@@ -57,9 +59,16 @@ class Pair {
             this.error_count--;
     }
 
-    stop() {
+    async stop() {
         this.stopped = true;
         this.stopped_until = Date.now() + this.stop_time;
+        const orders = await this.get_orders();
+        const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == this.pair);
+
+        if (this.log_level >= 2 && buyOrders.length)
+            print(this.pair, 'Found buy orders, canceling those...');
+
+        await this.cancel_all_orders(buyOrders, 'buy');
     }
 
     restart() {
@@ -87,7 +96,7 @@ class Pair {
             if (this.buy_count > 6 || this.error_count > 6) {
 
                 if (this.log_level >= 2)
-                    print(this.pair, `Stopping pair because: Too many buys? ${this.buy_count > 6}, Too many err? ${this.error_count > 6}`);
+                    print(this.pair, `Stopping pair: Too many buys? ${this.buy_count > 6}, Too many err? ${this.error_count > 6}`);
 
                 this.stop();
                 return false;
@@ -157,9 +166,7 @@ class Pair {
     }
 
     cancel_all_orders_success(res, side) { // both sell and buys
-        if (this.log_level >= 2)
-            print(this.pair, `Cancelling all ${side} orders success`);
-        delete this.order_id;
+        return;
     }
 
     async cancel_all_orders(orders, side) { // both sell and buys
@@ -247,10 +254,7 @@ class Pair {
     }
 
     cancel_buy_success(res) {
-        if (this.log_level >= 2)
-            print(this.pair, 'Cancel buy order (REST response)');
-        delete this.order_id;
-        this.buy_placed = false;
+        return;
     }
 
     /**
@@ -280,22 +284,16 @@ class Pair {
         });
     };
 
-    CANCELED_LIMIT_BUY() {
+    async CANCELED_LIMIT_BUY() {
+        delete this.order_id;
+        this.buy_placed = false;
+        if (!this.cancelling_all_orders) this.busy = false;
+
         if (this.log_level >= 2)
-            print(this.pair, `CANCELED BUY (WS response)`);
+            print(this.pair, `CANCELED BUY (WS response), will retry buy...`);
 
-        // Can place again (in case first order) ?
-        this.setPositionSize();
-        this.setMinNotionalState();
-        // minNotional ?
-        if (this.position_size_is_over_minNotional) {
-            this.buy_placed = false; // can now place again
-            if (this.log_level >= 3)
-                print(this.pair, 'Still has room for buy order.');
-        }
-
-        if (!this.cancelling_all_orders)
-            this.busy = false;
+        // Can place again todo good?
+        await this.handle_place_buy();
     }
 
     /////////////////////////////////////////////////////////
@@ -309,29 +307,19 @@ class Pair {
      */
     async buy_error(e) {
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
-            print(this.pair, '-1015');
+            print(this.pair, '-1015, retrying...');
         } else {
             this.error_count++;
-            print(this.pair, 'Error when placing Limit Buy.', e);
-        }
-        // Can place again (in case first order) ?
-        // minNotional ?
-        this.setPositionSize();
-        this.setMinNotionalState();
-        if (this.position_size_is_over_minNotional) {
-
-            if (this.log_level >= 3)
-                print(this.pair, 'Re-trying buy order.');
-
-            await this.limiter.limit('push', 'place_buy_order', this);
+            print(this.pair, 'Error when placing Limit Buy, retrying...', e);
         }
         this.busy = false;
+
+        // Try again
+        await this.handle_place_buy();
     }
 
     buy_success(res) {
-        this.buy_success_received = true;
-        if (this.log_level >= 3)
-            print(this.pair, 'Limit Buy success (REST response)');
+        return;
     }
 
     /** BUY
@@ -416,9 +404,7 @@ class Pair {
     }
 
     cancel_sell_success(res) {
-        if (this.log_level >= 2)
-            print(this.pair, 'Cancel sell order (REST response)');
-        delete this.sell_order_id;
+        return;
     }
 
     async cancel_sell() {
@@ -432,11 +418,16 @@ class Pair {
         });
     };
 
-    CANCEL_LIMIT_SELL() {
+    async CANCEL_LIMIT_SELL() {
+        delete this.sell_order_id;
+        this.sell_placed = false;
+        if (!this.cancelling_all_orders) this.busy = false;
+
         if (this.log_level >= 2)
-            print(this.pair, `CANCELED SELL (WS response)`);
-        if (!this.cancelling_all_orders)
-            this.busy = false;
+            print(this.pair, `CANCELED SELL (WS response), will retry sell...`);
+
+        // Can place again todo good?
+        await this.handle_place_sell();
     }
 
     /////////////////////////////////////////////////////////
@@ -445,17 +436,15 @@ class Pair {
 
     async sell_error(e) {
         this.error_count++;
-        print(this.pair, 'Error when placing Limit Sell, retrying...', e);
-
         this.busy = false;  // handle_place_sell wont always put busy in true / false
+        print(this.pair, 'Error when placing Limit Sell, retrying...', e);
 
         // try again
         await this.handle_place_sell();
     }
 
     sell_success(res) {
-        if (this.log_level >= 3)
-            print(this.pair, 'Limit sell success (REST response)');
+        return;
     }
 
     async place_sell_order() {
@@ -470,7 +459,6 @@ class Pair {
 
         await new Promise((resolve, reject) => {
             const qty = binance.roundStep(this.balance_available, this.stepSize);
-
             binance.sell(this.pair, qty, this.rnd(this.sell_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
                 if (e) this.sell_error(e);
                 else this.sell_success(res);
@@ -506,16 +494,33 @@ class Pair {
      *      - Whats in queue? (DONT place new BUY)
      *
      *  gucci? ->
-     *      cancel buy order ->
-     *          err? ->
-     *              get orders // check orders ->
-     *                  cancel orders ->
-     *                      continue (delete order id and place buy)
-     *          no err? ->
-     *              continue (delete order id and place buy)
+     *      busy? ->
+     *          wait and retry until not busy
+     *      not busy? ->
+     *          cancel buy order ->
+     *              err? ->
+     *                  get orders // check orders ->
+     *                      cancel orders ->
+     *                          continue (delete order id and place buy)
+     *              no err? ->
+     *                  continue (delete order id and place buy)
      *
      */
     async handle_place_buy() {
+
+        // Retry until not busy, in case canceling, (not supposed to be placing orders since its removing doubles from queue)
+        if (this.busy) {
+            if (this.log_level >= 2)
+                print(this.pair, `Cant place buy in queue because busy, retry in 1.5 secs... (${this.buy_try_count} tries)`);
+
+            setTimeout(async () => {
+                this.buy_try_count++;
+                await this.handle_place_buy();
+            }, 1500);
+            return;
+        }
+        this.buy_try_count = 0;
+
         const isValid = this.validate();
         const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
         this.setMinNotionalState();
@@ -575,16 +580,33 @@ class Pair {
      *      - position size of sell (>= minNotional)
      *
      *  gucci? ->
-     *      cancel sell order ->
-     *          err? ->
-     *              get orders // check orders ->
-     *                  cancel orders ->
-     *                      continue (delete order id and place sell)
-     *          no err? ->
-     *              continue (delete order id and place sell)
+     *      busy? ->
+     *          wait and retry until not busy
+     *      not busy? ->
+     *          cancel sell order ->
+     *              err? ->
+     *                  get orders // check orders ->
+     *                      cancel orders ->
+     *                          continue (delete order id and place sell)
+     *              no err? ->
+     *                  continue (delete order id and place sell)
      *
      */
     async handle_place_sell() {
+
+        // Retry until not busy, in case canceling, (not supposed to be placing orders since its removing doubles from queue)
+        if (this.busy) {
+            if (this.log_level >= 2)
+                print(this.pair, `Cant place sell in queue because busy, retry in 1.5 secs... (${this.sell_try_count} tries)`);
+
+            setTimeout(async () => {
+                this.sell_try_count++;
+                await this.handle_place_sell();
+            }, 1500);
+            return;
+        }
+        this.sell_try_count = 0;
+
         const isValid = this.validate();
         const is_in_queue = this.limiter.getInfo(Pair, 'place_sell_order') == true;
         this.setMinNotionalState();
@@ -641,12 +663,14 @@ class Pair {
 
     hasBuyLineDiv() {
         const div = this.last_buy_line / this.buy_line;
+        this.div_buy = div;
         return div > 1.003 || div < 0.997;
     }
 
     hasSellLineDiv() {
         if (!this.last_sell_line) return false;
         const div = this.last_sell_line / this.sell_line;
+        this.div_sell = div;
         return div > 1.003 || div < 0.997;
     }
 
@@ -659,14 +683,14 @@ class Pair {
                     if (this.log_level >= 3)
                         print(this.pair, 'Checking div but is busy, trying again in one sec...');
 
-                    this.handle_new_prices(1000); // todo no await fine?
+                    await this.handle_new_prices(1000); // todo no await fine?
                     return resolve();
                 }
 
                 if (this.order_id && this.hasBuyLineDiv()) {
 
                     if (this.log_level >= 3)
-                        print(this.pair, 'Cancelling buy for div...');
+                        print(this.pair, `Cancelling buy for div ${this.div_buy.toFixed(2)} ...`);
 
                     // Cancel
                     await this.cancel_buy();
@@ -677,7 +701,7 @@ class Pair {
                 if (this.sell_order_id && this.hasSellLineDiv()) {
 
                     if (this.log_level >= 3)
-                        print(this.pair, 'Cancelling sell for div...');
+                        print(this.pair, `Cancelling sell for div ${this.div_sell.toFixed(2)} ...`);
 
                     // Cancel
                     await this.cancel_sell();

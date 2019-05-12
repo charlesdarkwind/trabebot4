@@ -77,7 +77,6 @@ class Limiter {
             // has token: execute now
             if (this.token_count > 0) {
                 this.token_count--;
-                print(Pair.pair, fn); // todo remove
                 await Pair[fn](args);
             } else {
                 // place in queue

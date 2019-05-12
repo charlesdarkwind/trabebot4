@@ -136,6 +136,7 @@ class Session {
                 print(pair, 'Re-starting stopped pair...');
                 Pair.stopped = false;
                 delete Pair.stopped_until;
+                await Pair.handle_place_buy();
             }
         }));
     }
@@ -349,7 +350,6 @@ class Session {
      * @return {Promise<void>}
      */
     async placeFirstBuys() {
-        // await this.limiter.limit('push', 'place_buy_order', this.Pairs['ZENBTC']);
         for (let pair in this.Pairs) {
             const Pair = this.Pairs[pair];
             await this.limiter.limit('push', 'place_buy_order', Pair);
