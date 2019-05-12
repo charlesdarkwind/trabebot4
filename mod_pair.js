@@ -311,7 +311,8 @@ class Pair {
      */
     async buy_error(e) {
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
-            print(this.pair, '-1015, retrying...');
+            if (this.log_level >= 2)
+                print(this.pair, '-1015, retrying...');
         } else {
             this.error_count++;
             print(this.pair, 'Error when placing Limit Buy, retrying...', e);
