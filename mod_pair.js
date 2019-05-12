@@ -270,6 +270,7 @@ class Pair {
      * @return {Promise<void>}
      */
     async cancel_buy() {
+        this.busy = true;
         await new Promise((resolve, reject) => {
             binance.cancel(this.pair, this.order_id, (e, res, symbol) => {
                 if (e) this.cancel_buy_error(e);
@@ -328,6 +329,7 @@ class Pair {
     }
 
     buy_success(res) {
+        this.buy_success_received = true;
         if (this.log_level >= 3)
             print(this.pair, 'Limit Buy success (REST response)');
     }
@@ -375,6 +377,7 @@ class Pair {
             await this.S.handleConcurentCount();
 
             this.concurrent_cancel_buy = true;
+            this.busy = false;
             return;
         }
 
@@ -419,6 +422,7 @@ class Pair {
     }
 
     async cancel_sell() {
+        this.busy = true;
         await new Promise((resolve, reject) => {
             binance.cancel(this.pair, this.sell_order_id, (e, res, symbol) => {
                 if (e) this.cancel_sell_error(e);
@@ -442,6 +446,8 @@ class Pair {
     async sell_error(e) {
         this.error_count++;
         print(this.pair, 'Error when placing Limit Sell, retrying...', e);
+
+        this.busy = false;  // handle_place_sell wont always put busy in true / false
 
         // try again
         await this.handle_place_sell();
@@ -644,32 +650,43 @@ class Pair {
         return div > 1.003 || div < 0.997;
     }
 
-    async handle_new_prices() {
-        return new Promise(async (resolve, reject) => {
+    async handle_new_prices(delay = 0) {
+        setTimeout(async () => {
+            return new Promise(async (resolve, reject) => {
 
-            if (this.order_id && this.hasBuyLineDiv()) {
+                if (this.busy || this.cancelling_all_orders) {
 
-                if (this.log_level >= 3)
-                    print(this.pair, 'Cancelling buy for div...');
+                    if (this.log_level >= 3)
+                        print(this.pair, 'Checking div but is busy, trying again in one sec...');
 
-                // Cancel
-                await this.cancel_buy();
-                // Place
-                await this.handle_place_buy();
-            }
+                    this.handle_new_prices(1000); // todo no await fine?
+                    return resolve();
+                }
 
-            if (this.sell_order_id && this.hasSellLineDiv()) {
+                if (this.order_id && this.hasBuyLineDiv()) {
 
-                if (this.log_level >= 3)
-                    print(this.pair, 'Cancelling sell for div...');
+                    if (this.log_level >= 3)
+                        print(this.pair, 'Cancelling buy for div...');
 
-                // Cancel
-                await this.cancel_sell();
-                // Place
-                await this.handle_place_sell();
-            }
-            resolve();
-        });
+                    // Cancel
+                    await this.cancel_buy();
+                    // Place
+                    await this.handle_place_buy();
+                }
+
+                if (this.sell_order_id && this.hasSellLineDiv()) {
+
+                    if (this.log_level >= 3)
+                        print(this.pair, 'Cancelling sell for div...');
+
+                    // Cancel
+                    await this.cancel_sell();
+                    // Place
+                    await this.handle_place_sell();
+                }
+                resolve();
+            });
+        }, delay);
     }
 }
 

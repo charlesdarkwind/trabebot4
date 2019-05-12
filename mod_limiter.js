@@ -7,7 +7,7 @@ class Limiter {
         this.refillInterval();
         this.checkQueueInterval();
 
-        // this.t();
+        // this.t(); // tests
     }
 
     // t() {

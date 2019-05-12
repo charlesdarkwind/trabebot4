@@ -77,9 +77,11 @@ const start = async () => {
      *  INTERVAL:
      *      - Re-start pairs with no buys because of:
      *          - Concurent count buy cancel
+     *          - re-start stopped for no reason that are due to trade again
      */
     setInterval(async () => {
         await S.handleStoppedForConcurrent();
+        await S.handleStoppedForAnyReason();
     }, 60000 * 2);
 
     /** 30 sec

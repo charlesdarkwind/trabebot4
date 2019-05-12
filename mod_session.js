@@ -120,6 +120,26 @@ class Session {
         return count < this.options.concurent_count_max;
     }
 
+    /** Re-start "stopped" pair that are due to trade again
+     *
+     *  conditions:
+     *      - pair is stopped
+     *      - stopped until reached
+     *
+     * @return {Promise<void>}
+     */
+    async handleStoppedForAnyReason() {
+        const now = Date.now();
+        await Promise.all(this.pairs.map(async pair => {
+            const Pair = this.Pairs[pair];
+            if (Pair.stopped && now > Pair.stopped_until) {
+                print(pair, 'Re-starting stopped pair...');
+                Pair.stopped = false;
+                delete Pair.stopped_until;
+            }
+        }));
+    }
+
     /** Re-place buy order for pairs whom buy was canceled because the concurrent count max was reached.
      *
      * Conditions:
