@@ -91,6 +91,21 @@ const start = async () => {
     setInterval(async () => {
         await S.handleConcurentCount();
     }, 30000);
+
+    /**
+     * Refill token bucket
+     */
+    setInterval(() => {
+        if (limiter.getTokenCount() < 10)
+            limiter.setTokenCount(1);
+    }, 105);
+
+    /**
+     * run queue
+     */
+    setInterval(() => {
+        limiter.runQueue();
+    }, 20);
 };
 
 start();

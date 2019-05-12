@@ -1,11 +1,6 @@
-urgent:
-    cant place buy if waiting cancel buy OR if waiting place buy ?
-    cant place sell if waiting cancel sell OR if waitingg place sell ?
+Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
 
-    if handle buy / sell fails, any retry logic?
-
-
-
+handle place should wrap a promise?
 
 
 

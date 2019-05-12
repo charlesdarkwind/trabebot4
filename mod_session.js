@@ -338,7 +338,7 @@ class Session {
         if (!S.pairs.includes(pair)) return;
         const P = S.Pairs[pair];
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
-        try {
+        try {  // will simply print execution update names for wich not methods exists
             P[func](data);
         } catch (e) {
             print('system', `${func}`);
@@ -352,7 +352,7 @@ class Session {
     async placeFirstBuys() {
         for (let pair in this.Pairs) {
             const Pair = this.Pairs[pair];
-            await this.limiter.limit('push', 'place_buy_order', Pair);
+            await this.limiter.limit('place_buy_order', Pair);
         }
     }
 

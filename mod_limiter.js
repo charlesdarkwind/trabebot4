@@ -4,18 +4,27 @@ class Limiter {
     constructor() {
         this.token_count = 10;
         this.queue = [];
-        this.refillInterval();
-        this.checkQueueInterval();
-
-        // this.t(); // tests
     }
 
-    // t() {
-    //     setInterval(() => {
-    //         const inQueue = this.queue.map(obj => obj.Pair.pair);
-    //         if (inQueue.length > 0) console.log('test: ', inQueue);
-    //     }, 3000);
-    // }
+    setTokenCount(count) {
+        this.token_count += count;
+    }
+
+    getTokenCount() {
+        return this.token_count;
+    }
+
+    getQueue() {
+        return this.queue;
+    }
+
+    pushInQueue(obj) {
+        this.queue.push(obj);
+    }
+
+    getFistInQueue() {
+        return this.queue.shift();
+    }
 
     /**
      * If queue contains same Pair and side order, return the obj.
@@ -25,39 +34,16 @@ class Limiter {
      * @return {object}
      */
     getInfo(Pair, fn) {
-        return this.queue.find(obj => obj.Pair == Pair && obj.fn == fn);
+        return this.getQueue().find(obj => obj.Pair == Pair && obj.fn == fn);
     }
 
-    async runQueue() {
-        if (this.queue.length > 0) {
-            for (let i = this.token_count; i > 0; i--) {
-                const obj = this.queue[i - 1];
-                this.token_count--;
-                await obj.Pair[obj.fn](obj.args);
-                if (i === 1) this.queue = this.queue.slice(this.token_count); // Loop ended
-            }
+    runQueue() {
+        if (!this.getQueue().length) return;
+        for (let i = 0; i < this.getTokenCount(); i++) {
+            const obj = this.getFistInQueue();
+            obj.Pair[obj.fn]();
+            this.setTokenCount(-1);
         }
-    }
-
-    /**
-     * refill bucket
-     */
-    refillBucket() {
-        if (this.token_count < 10) this.token_count++;
-    }
-
-    /**
-     * refill bucket interval
-     */
-    refillInterval() {
-        setInterval(this.refillBucket.bind(this), 105);
-    }
-
-    /**
-     * re-run queue interval
-     */
-    checkQueueInterval() {
-        setInterval(async () => await this.runQueue.bind(this), 20);
     }
 
     /** Limit an order
@@ -67,25 +53,22 @@ class Limiter {
      * 2. else:
      *      exec now
      *
-     * @param method - str - eg 'unshift'
      * @param fn - str - eg 'place_buy_order'
      * @param Pair - obj - Pair object instance
-     * @param args - obj
      */
-    async limit(method, fn, Pair, ...args) {
+    async limit(fn, Pair) {
         return new Promise(async (resolve, reject) => {
             // has token: execute now
-            if (this.token_count > 0) {
-                this.token_count--;
-                await Pair[fn](args);
+            if (this.getTokenCount() > 0) {
+                this.setTokenCount(-1);
+                await Pair[fn]();
             } else {
                 // place in queue
-                print(Pair.pair, `Limiting...`);
-                this.queue[method]({fn, Pair, args});
+                print(Pair.pair, 'Limiting...');
+                this.pushInQueue({fn, Pair});
             }
             resolve();
         });
-
     }
 }
 
