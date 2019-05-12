@@ -36,7 +36,7 @@ class Session {
         if (os.platform() == 'win32' && this.comp_name == 'JAS-PC')
             this.thresh_path = 'W:\\backtester4\\datasets\\main\\tresholds.json';
         else if (os.platform() == 'win32' && this.comp_name == 'JAS-VPS')
-            this.thresh_path = 'W:\\backtester4\\datasets\\main\\tresholds.json';
+            this.thresh_path = 'C:\\Users\\JAS\\Documents\\backtester_4\\datasets\\main\\tresholds.json';
         else
             this.thresh_path = 'home/jasmin/tresholds.json';
     }
