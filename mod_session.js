@@ -284,7 +284,7 @@ class Session {
             if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
                 ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\backtester4\\sample'});
             } else if (this.comp_name == 'JAS-VPS' && this.comp_name == 'JAS-VPS') {
-                ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\backtester4\\sample'});
+                ls = spawn('python', ['mod_control.py'], {cwd: 'C:\\Users\\JAS\\Documents\\backtester_4\\sample'});
             } else {
                 // todo: pair must be listed in [pairstotest] from the python mod_data script
                 ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/backtester4'});

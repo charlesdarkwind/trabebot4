@@ -57,7 +57,7 @@ const start = async () => {
         await S.setInfo();
     }, 60000 * 60 * 2);
 
-    /** 8 mins
+    /** 10 mins
      *  INTERVAL:
      *      1. Decrement pairs buy & error counts
      *      2. get klines
@@ -71,7 +71,7 @@ const start = async () => {
         await S.callDfRecalc();
         await S.initBalances();
         await S.handle_new_prices();
-    }, 60000 * 8);
+    }, 60000 * 10);
 
     /** 2 mins
      *  INTERVAL:
