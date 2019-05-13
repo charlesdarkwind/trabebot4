@@ -4,7 +4,7 @@ const {spawn} = require('child_process');
 const print = (pair, message, e, other) => {
     try {
         let str = `${pair.padStart(9)} | ${message}`;
-        str += `${' '.repeat(str.length > 70 ? 70 : 70 - str.length)}| ${moment().format('MMM D, H:mm:ss')}`;
+        str += `${' '.repeat(str.length > 100 ? 100 : 100 - str.length)}| ${moment().format('MMM D, H:mm:ss')}`;
         console.log(str);
         if (other) console.warn(other);
         if (e) {

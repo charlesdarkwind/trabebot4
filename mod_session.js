@@ -154,7 +154,7 @@ class Session {
      * @return {Promise<void>}
      */
     async handleStoppedForConcurrent() {
-        if (!this.getConcurrent() && this.stopped_for_concurrent) return;
+        if (!this.getConcurrent() && !this.stopped_for_concurrent) return;
         if (this.concurrent_cancel_buy) this.concurrent_cancel_buy = false;
         this.stopped_for_concurrent = false;
         print('system', 'Concurent count no longer reached!');
@@ -180,7 +180,7 @@ class Session {
      * @return {Promise<void>}
      */
     async handleConcurentCount() {
-        if (this.getConcurrent() && !this.stopped_for_concurrent) return;
+        if (this.getConcurrent() && this.stopped_for_concurrent) return;
         if (!this.concurrent_cancel_buy) this.concurrent_cancel_buy = true;
         this.stopped_for_concurrent = true;
         print('system', 'Concurent count reached!');
