@@ -116,11 +116,6 @@ class Session {
         for (const p in this.Pairs) {
             if (this.Pairs[p].isConcurrent) count++;
         }
-
-        if (count >= this.options.concurent_count_max) {
-            console.log(count, this.options.concurent_count_max)
-        }
-
         return count >= this.options.concurent_count_max;
     }
 
