@@ -485,7 +485,7 @@ class Pair {
         this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `NEW SELL at price: ${price} (WS response)`);
+            print(this.pair, `NEW SELL at price: ${price.toFixed(8)} (WS response)`);
     }
 
     /////////////////////////////////////////////////////////
