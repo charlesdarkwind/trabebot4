@@ -26,7 +26,6 @@ class Session {
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.Pairs = {};
         this.comp_name = process.env['COMPUTERNAME'];
-        this.concurrent_cancel_buy = false;
         this.stopped_for_concurrent = false;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
@@ -113,12 +112,17 @@ class Session {
      *
      * @return {boolean}
      */
-    getConcurrent() {
+    isConcurrentCountBusted() {
         let count = 0;
         for (const p in this.Pairs) {
             if (this.Pairs[p].isConcurrent) count++;
         }
-        return count < this.options.concurent_count_max;
+
+        if (count >= this.options.concurent_count_max) {
+            console.log(count, this.options.concurent_count_max)
+        }
+
+        return count >= this.options.concurent_count_max;
     }
 
     /** Re-start "stopped" pair that are due to trade again
@@ -145,26 +149,25 @@ class Session {
     /** Re-place buy order for pairs whom buy was canceled because the concurrent count max was reached.
      *
      * Conditions:
-     *      - is stopped for concurrent count
-     *      - no longer max conc count
-     *      - concurrent_cancel_buy prop is true (set it to false if proceeding)
+     *      - max conc count NOT busted
+     *      - Pair is stopped for concurrent count
+     *      - stopped_for_concurrent prop is true (set it to false if proceeding)
      *      - no order ID prop
      *      - buy_placed prop is false
      *
      * @return {Promise<void>}
      */
     async handleStoppedForConcurrent() {
-        if (!this.getConcurrent() && !this.stopped_for_concurrent) return;
-        if (this.concurrent_cancel_buy) this.concurrent_cancel_buy = false;
-        this.stopped_for_concurrent = false;
-        print('system', 'Concurent count no longer reached!');
+        if (this.isConcurrentCountBusted()) return;
+        if (this.log_level >= 3)
+            print('system', `Concurent count is not reached, checking for pairs to re-start.. ${this.isConcurrentCountBusted()} ${!this.stopped_for_concurrent}`);
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
-            if (Pair.concurrent_cancel_buy && !Pair.order_id && !Pair.buy_placed) {
+            if (Pair.stopped_for_concurrent && !Pair.order_id && !Pair.buy_placed) {
                 if (this.log_level >= 2)
                     print(pair, 'Concurrent count diminished, buying again');
                 await Pair.handle_place_buy();
-                Pair.concurrent_cancel_buy = false;
+                Pair.stopped_for_concurrent = false;
             }
         }));
     }
@@ -174,19 +177,18 @@ class Session {
      * Conditions:
      *      - is NOT stopped for concurrent count
      *      - max conc count reached
-     *      - concurrent_cancel_buy prop is true (set it to true)
+     *      - stopped_for_concurrent prop is true (set it to true)
      *      - has either order_id or buy_placed
      *
      * @return {Promise<void>}
      */
     async handleConcurentCount() {
-        if (this.getConcurrent() && this.stopped_for_concurrent) return;
-        if (!this.concurrent_cancel_buy) this.concurrent_cancel_buy = true;
-        this.stopped_for_concurrent = true;
-        print('system', 'Concurent count reached!');
+        if (!this.isConcurrentCountBusted()) return;
+        if (this.log_level >= 3)
+            print('system', `Concurent count is reached, checking for orders to cancel.. ${!this.isConcurrentCountBusted()} ${this.stopped_for_concurrent}`);
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
-            if (!Pair.concurrent_cancel_buy && (Pair.order_id || Pair.buy_placed)) {
+            if (!Pair.stopped_for_concurrent && (Pair.order_id || Pair.buy_placed)) {
                 if (this.log_level >= 2)
                     print(pair, 'Concurrent count reached and pair have orders, canceling');
                 // Fetch all buy orders
@@ -194,7 +196,7 @@ class Session {
                 const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == pair);
                 // Cancel all buy orders
                 await Pair.cancel_all_orders(buyOrders, 'buy');
-                Pair.concurrent_cancel_buy = true;
+                Pair.stopped_for_concurrent = true;
             }
         }));
     }

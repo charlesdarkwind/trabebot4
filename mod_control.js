@@ -15,7 +15,7 @@ const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
     concurent_count_max: 5, // todo change
     position_divider_default: 70.5,
-    position_divider: 300,
+    position_divider: 2000,
     num_pairs: 70
 };
 
@@ -105,7 +105,7 @@ const start = async () => {
      */
     setInterval(() => {
         limiter.runQueue();
-    }, 20);
+    }, 80);
 };
 
 start();

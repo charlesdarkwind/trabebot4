@@ -294,10 +294,10 @@ class Pair {
         if (!this.cancelling_all_orders) this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `CANCELED BUY (WS response), will retry buy...`);
+            print(this.pair, `CANCELED BUY, will retry buy...`);
 
         // Can place again?
-        if (!this.S.stopped_for_concurrent && !this.stopped)
+        if (!this.S.isConcurrentCountBusted() && !this.stopped)
             await this.handle_place_buy();
     }
 
@@ -321,7 +321,8 @@ class Pair {
         this.busy = false;
 
         // Try again
-        await this.handle_place_buy();
+        if (!this.S.isConcurrentCountBusted() && !this.stopped)
+            await this.handle_place_buy();
     }
 
     buy_success(res) {
@@ -363,14 +364,14 @@ class Pair {
         }
 
         // Check conc count
-        if (this.S.getConcurrent() !== true) {
+        if (this.S.isConcurrentCountBusted()) {
             if (this.log_level >= 3)
-                print(this.pair, 'Concurrent count, not buying + canceling pair buys');
+                print(this.pair, 'Conc count reached, not buying + canceling pair buys');
 
             // Check for concurent count handling, canceling every buys of every orders
             await this.S.handleConcurentCount();
 
-            this.concurrent_cancel_buy = true;
+            this.stopped_for_concurrent = true;  // set here and at session level only
             this.busy = false;
             return;
         }
@@ -396,7 +397,7 @@ class Pair {
         this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `NEW BUY at price: ${price.toFixed(8)} (WS response)`);
+            print(this.pair, `NEW BUY at price: ${price.toFixed(8)}`);
     }
 
     /////////////////////////////////////////////////////////
@@ -434,7 +435,7 @@ class Pair {
         if (!this.cancelling_all_orders) this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `CANCELED SELL (WS response), will retry sell...`);
+            print(this.pair, `CANCELED SELL, will retry sell...`);
 
         // Can place again ?
         await this.handle_place_sell();
@@ -486,7 +487,7 @@ class Pair {
         this.busy = false;
 
         if (this.log_level >= 2)
-            print(this.pair, `NEW SELL at price: ${price.toFixed(8)} (WS response)`);
+            print(this.pair, `NEW SELL at price: ${price.toFixed(8)}`);
     }
 
     /////////////////////////////////////////////////////////
@@ -532,12 +533,11 @@ class Pair {
         this.buy_try_count = 0;
 
         const isValid = this.validate();
-        const is_concurents_ok = this.S.getConcurrent() < this.S.options.concurent_count_max;
         this.setMinNotionalState();
         const hasMinNot = this.position_size_is_over_minNotional; // todo should fetch balance before?
         const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
 
-        if (isValid && !is_in_queue && is_concurents_ok && hasMinNot) { // conditions
+        if (isValid && !is_in_queue && !this.S.isConcurrentCountBusted() && hasMinNot) { // conditions
             this.busy = true;
 
             // Cancel other buy
@@ -719,6 +719,20 @@ class Pair {
             }
             resolve();
         });
+    }
+
+    /////////////////////////////////////////////////////////
+    /////////////////////// OTHER ///////////////////////////
+    /////////////////////////////////////////////////////////
+
+    REJECTED_LIMIT_SELL() {
+        this.error++;
+        this.validate();
+    }
+
+    REJECTED_LIMIT_BUY() {
+        this.error++;
+        this.validate();
     }
 }
 
