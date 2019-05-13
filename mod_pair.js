@@ -296,8 +296,9 @@ class Pair {
         if (this.log_level >= 2)
             print(this.pair, `CANCELED BUY (WS response), will retry buy...`);
 
-        // Can place again
-        await this.handle_place_buy();
+        // Can place again?
+        if (!this.S.stopped_for_concurrent && !this.stopped)
+            await this.handle_place_buy();
     }
 
     /////////////////////////////////////////////////////////
@@ -364,7 +365,7 @@ class Pair {
         // Check conc count
         if (this.S.getConcurrent() !== true) {
             if (this.log_level >= 3)
-                print(this.pair, 'Concurrent count, not buying + canceling already placed buy');
+                print(this.pair, 'Concurrent count, not buying + canceling pair buys');
 
             // Check for concurent count handling, canceling every buys of every orders
             await this.S.handleConcurentCount();
@@ -435,7 +436,7 @@ class Pair {
         if (this.log_level >= 2)
             print(this.pair, `CANCELED SELL (WS response), will retry sell...`);
 
-        // Can place again todo good?
+        // Can place again ?
         await this.handle_place_sell();
     }
 
