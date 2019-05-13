@@ -26,7 +26,6 @@ class Session {
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.Pairs = {};
         this.comp_name = process.env['COMPUTERNAME'];
-        this.stopped_for_concurrent = false;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -159,8 +158,8 @@ class Session {
      */
     async handleStoppedForConcurrent() {
         if (this.isConcurrentCountBusted()) return;
-        if (this.log_level >= 3)
-            print('system', `Concurent count is not reached, checking for pairs to re-start.. ${this.isConcurrentCountBusted()} ${!this.stopped_for_concurrent}`);
+        // if (this.log_level >= 3)
+        //     print('system', `Concurent count is not reached, checking for pairs to re-start.. ${this.isConcurrentCountBusted()}`);
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             if (Pair.stopped_for_concurrent && !Pair.order_id && !Pair.buy_placed) {
@@ -184,8 +183,8 @@ class Session {
      */
     async handleConcurentCount() {
         if (!this.isConcurrentCountBusted()) return;
-        if (this.log_level >= 3)
-            print('system', `Concurent count is reached, checking for orders to cancel.. ${!this.isConcurrentCountBusted()} ${this.stopped_for_concurrent}`);
+        // if (this.log_level >= 3)
+        //     print('system', `Concurent count is reached, checking for orders to cancel.. ${!this.isConcurrentCountBusted()}`);
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             if (!Pair.stopped_for_concurrent && (Pair.order_id || Pair.buy_placed)) {
@@ -290,12 +289,12 @@ class Session {
 
             let ls = undefined;
             if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
-                ls = spawn('python', ['mod_control.py'], {cwd: 'W:\\backtester4\\sample'});
+                ls = spawn('python', ['mod_control.py', '--server'], {cwd: 'W:\\backtester4\\sample'});
             } else if (this.comp_name == 'JAS-VPS' && this.comp_name == 'JAS-VPS') {
-                ls = spawn('python', ['mod_control.py'], {cwd: 'C:\\Users\\JAS\\Documents\\backtester_4\\sample'});
+                ls = spawn('python', ['mod_control.py', '--server'], {cwd: 'C:\\Users\\JAS\\Documents\\backtester_4\\sample'});
             } else {
                 // todo: pair must be listed in [pairstotest] from the python mod_data script
-                ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/backtester4'});
+                ls = spawn('python', ['mod_control.py', '--server'], {cwd: '/home/jasmin/backtester4'});
             }
 
             if (this.log_level >= 2)

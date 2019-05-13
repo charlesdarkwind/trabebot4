@@ -555,7 +555,7 @@ class Pair {
         }
     }
 
-    async PARTIALLY_FILLED_LIMIT_SELL() {
+    async PARTIALLY_FILLED_LIMIT_SELL(data) {
         await this.S.initBalances();
         this.isConcurrent = false;
         this.sell_order_id = data.i;
@@ -566,7 +566,7 @@ class Pair {
         this.handle_place_buy();
     }
 
-    async FILLED_LIMIT_SELL() {
+    async FILLED_LIMIT_SELL(data) {
         await this.S.initBalances();
         this.isConcurrent = false;
         this.sell_placed = false;
