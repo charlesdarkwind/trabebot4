@@ -22,7 +22,7 @@ class Pair {
         this.buy_placed = false;
         this.buy_price = undefined;
         this.buy_time = undefined;
-        this.sl_pct = 18; // todo stop pair is sl
+        this.sl_pct = 18; // todo stop pair if sl
         this.sl_price = undefined;
         this.balance_available = undefined;
         this.balance_in_order = undefined;

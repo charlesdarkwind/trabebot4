@@ -211,7 +211,7 @@ class Session {
      * @return {Promise<void>}
      */
     async callPythonKlines() {
-        return await new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
 
             let ls = undefined;
             if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
@@ -284,7 +284,7 @@ class Session {
      * @return {Promise<void>}
      */
     async callDfRecalc() {
-        return await new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
 
             let ls = undefined;
             if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
