@@ -566,8 +566,9 @@ class Pair {
         this.sell_order_id = data.i;
         this.last_executed_price = parseFloat(data.L); // only for logging
         this.setFilledPercent();
+        const sellFilledPct = Math.round(this.getTotalBalance() * this.sell_line / this.positionSizeInBTC * 100);
 
-        print(this.pair, `PARTIALL FILLED SELL (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price}`);
         this.handle_place_buy();
     }
 
@@ -579,7 +580,7 @@ class Pair {
         this.last_executed_price = parseFloat(data.L); // only for logging
         this.percent_filled = 0;
 
-        print(this.pair, `FILLED SELL (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `FILLED SELL (100%) at price: ${this.last_executed_price}`);
         this.handle_place_buy();
     }
 
