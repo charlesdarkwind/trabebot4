@@ -313,7 +313,7 @@ class Pair {
     async buy_error(e) {
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
             if (this.log_level >= 2)
-                print(this.pair, '-1015, retrying...');
+                print(this.pair, 'Buy -1015, retrying...');
         } else {
             this.error_count++;
             print(this.pair, 'Error when placing Limit Buy, retrying...', e);
@@ -446,9 +446,14 @@ class Pair {
     /////////////////////////////////////////////////////////
 
     async sell_error(e) {
-        this.error_count++;
+        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
+            if (this.log_level >= 2)
+                print(this.pair, 'Sell -1015, retrying...');
+        } else {
+            this.error_count++;
+            print(this.pair, 'Error when placing Limit Sell, retrying...', e);
+        }
         this.busy = false;  // handle_place_sell wont always put busy in true / false
-        print(this.pair, 'Error when placing Limit Sell, retrying...', e);
 
         // try again
         await this.handle_place_sell();
