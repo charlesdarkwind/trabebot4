@@ -1,33 +1,38 @@
-Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
+trade bot:
+    Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
 
-handle place should wrap a promise?
-
-
-
+    handle place should wrap a promise?
 
 
-if (this.busy === true || this.cancelling_all_orders) return false;
+backtest:
+    high priority:
+        - Test On Balance Volume divergence (as short slope of price vs short slope of obv) (seems very good)
+        - optimise for "short time" up-trend / side-way / down-trend, + dev?
+        - Winning Trade holding time versus Losing Trade holding time
 
-cancel buy order
-    not there?
-        get all orders
-            cancel all buy orders
-            continue (delete this.order_id)
-    there?
-        continue (delete this.order_id)
+    medium priority:
+        - dynamic pos sizes to obfuscate, and prob important to give more capital to performing pairs
+        - simulate fill, instead of penalty, when buy exatly at low price, might not fill in reality for low liquidity pairs
+
+    low priority:
 
 
+    Window sized shorter during high volatility?
+    average of short term model and medium-long term one
+
+    take profit too low and fast?
 
 
-Centraliser logs sans besoin connexion
+other:
+    Centraliser logs sans besoin connexion
 
-Check how many open orders, prevent bug like last time.... (pm2 startup too)
+    Check how many open orders, prevent bug like last time.... (pm2 startup too)
 
-should probably put recalc df into another vps and use database to share (1gb dfs probs?)
+    should probably put recalc df into another vps and use database to share (1gb dfs probs?)
 
-make script for sell all and cancel all, run at start
+    make script for sell all and cancel all, run at start
 
-Update BTC balance
+    Update BTC balance
 
 
      Types: NEW CANCELED REJECTED TRADE EXPIRED

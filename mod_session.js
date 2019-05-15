@@ -61,6 +61,7 @@ class Session {
             const info = this.exchangeInfos.symbols.find(pair => pair.symbol === P.pair);
             const PRICE_FILTERS = info.filters.find(obj => obj.filterType === 'PRICE_FILTER');
             P.stepSize = info.filters.find(obj => obj.filterType == 'LOT_SIZE').stepSize;
+            P.minQty = info.filters.find(obj => obj.filterType == 'LOT_SIZE').minQty;
             P.minNotional = parseFloat(info.filters.find(obj => obj.filterType == 'MIN_NOTIONAL').minNotional);
             P.ticksize = parseFloat(PRICE_FILTERS.tickSize);
             P.precision = PRICE_FILTERS.tickSize.split('.')[1].split('1')[0].length + 1 || 0;
@@ -122,8 +123,16 @@ class Session {
     /** Re-start "stopped" pair that are due to trade again
      *
      *  conditions:
-     *      - pair is stopped
-     *      - stopped until reached
+     *      - stopped
+     *      - stopped until reached < now
+     *
+     * Or
+     *
+     *  (No buy order because buy failed for any reasons)
+     *  conditions:
+     *      - no buy order
+     *      - not selling
+     *      - not busy
      *
      * @return {Promise<void>}
      */
@@ -135,6 +144,9 @@ class Session {
                 print(pair, 'Re-starting stopped pair...');
                 Pair.stopped = false;
                 delete Pair.stopped_until;
+                await Pair.handle_place_buy();
+            } else if (!Pair.order_id && !Pair.sell_placed && !Pair.busy) {
+                print(pair, 'Re-trying buy for stagnant pair...');
                 await Pair.handle_place_buy();
             }
         }));

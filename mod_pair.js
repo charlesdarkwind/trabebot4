@@ -354,10 +354,18 @@ class Pair {
         // Set and get position_size
         const positionSize = this.setPositionSize();
 
+        // Check lot_size (has MinQty)
+        if (this.position_size < this.minQty) {
+            if (this.log_level >= 2)
+                print(this.pair, `Pos size (${positionSize}) of buy would be under minQty (LOT_SIZE), not buying.`);
+            this.busy = false;
+            return;
+        }
+
         // Check min notional
         this.setMinNotionalState();
         if (!this.position_size_is_over_minNotional) {
-            if (this.log_level >= 3)
+            if (this.log_level >= 2)
                 print(this.pair, 'Pos size of buy would be under minNot, not buying.');
             this.busy = false;
             return;
@@ -365,7 +373,7 @@ class Pair {
 
         // Check conc count
         if (this.S.isConcurrentCountBusted()) {
-            if (this.log_level >= 3)
+            if (this.log_level >= 2)
                 print(this.pair, 'Conc count reached, not buying + canceling pair buys');
 
             // Check for concurent count handling, canceling every buys of every orders
@@ -489,6 +497,7 @@ class Pair {
         this.NEW_LIMIT_SELL_RECEIVED = true;
         this.last_sell_line = this.sell_line;
         this.sell_order_id = data.i;
+        this.sell_placed = true;
         this.busy = false;
 
         if (this.log_level >= 2)
@@ -556,7 +565,7 @@ class Pair {
             await this.limiter.limit('place_buy_order', this);
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place buy queue: Valid ${isValid} queue ${is_in_queue} Concurent ${is_concurents_ok} minNot ${hasMinNot}`);
+            print(this.pair, `Cant place buy queue: Valid ${isValid} queue ${is_in_queue} minNot ${hasMinNot}`);
         }
     }
 
@@ -564,11 +573,13 @@ class Pair {
         await this.S.initBalances();
         this.isConcurrent = false;
         this.sell_order_id = data.i;
-        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_price_sell = parseFloat(data.L); // only for logging
         this.setFilledPercent();
         const sellFilledPct = Math.round(this.getTotalBalance() * this.sell_line / this.positionSizeInBTC * 100);
+        const lastQty = data.Y;
+        const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
 
-        print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price_sell}, profit: ${profitPercent.toFixed(2)}%`);
         this.handle_place_buy();
     }
 
@@ -577,10 +588,12 @@ class Pair {
         this.isConcurrent = false;
         this.sell_placed = false;
         delete this.sell_order_id;
-        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_price_sell = parseFloat(data.L); // only for logging
         this.percent_filled = 0;
+        const lastQty = data.Y;
+        const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
 
-        print(this.pair, `FILLED SELL (100%) at price: ${this.last_executed_price}`);
+        print(this.pair, `FILLED SELL (100%) at price: ${this.last_executed_price_sell}, profit: ${profitPercent.toFixed(2)}%`);
         this.handle_place_buy();
     }
 
@@ -654,10 +667,10 @@ class Pair {
         this.isConcurrent = true;
         this.order_id = data.i;
         this.buy_placed = true;
-        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_price_buy = parseFloat(data.L); // only for logging
         this.setFilledPercent();
 
-        print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price}`);
+        print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy}`);
         this.handle_place_sell();
     }
 
@@ -666,10 +679,10 @@ class Pair {
         this.isConcurrent = true;
         this.buy_placed = false;
         delete this.order_id;
-        this.last_executed_price = parseFloat(data.L); // only for logging
+        this.last_executed_price_buy = parseFloat(data.L); // only for logging
         this.percent_filled = 100;
 
-        print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price.toFixed(8)}`);
+        print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy.toFixed(8)}`);
         this.handle_place_sell();
     }
 
