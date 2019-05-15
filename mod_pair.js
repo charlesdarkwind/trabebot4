@@ -481,8 +481,17 @@ class Pair {
         // Check balances again
         await this.S.initBalances();
 
+        const qty = binance.roundStep(this.balance_available, this.stepSize);
+
+        // Check lot_size (has MinQty)
+        if (qty < this.minQty) {
+            if (this.log_level >= 2)
+                print(this.pair, `Pos size (${qty}) of sell would be under minQty (LOT_SIZE), not buying.`);
+            this.busy = false;
+            return;
+        }
+
         await new Promise((resolve, reject) => {
-            const qty = binance.roundStep(this.balance_available, this.stepSize);
             binance.sell(this.pair, qty, this.rnd(this.sell_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
                 if (e) this.sell_error(e);
                 else this.sell_success(res);
