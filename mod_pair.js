@@ -486,7 +486,7 @@ class Pair {
         // Check lot_size (has MinQty)
         if (qty < this.minQty) {
             if (this.log_level >= 2)
-                print(this.pair, `Pos size (${qty}) of sell would be under minQty (LOT_SIZE), not buying.`);
+                print(this.pair, `Pos size (${qty}) of sell would be under minQty (LOT_SIZE), not selling.`);
             this.busy = false;
             return;
         }

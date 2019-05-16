@@ -1,3 +1,5 @@
+# todo change for bearish options when time comes
+
 trade bot:
     Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
 

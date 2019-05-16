@@ -133,6 +133,7 @@ class Session {
      *      - no buy order
      *      - not selling
      *      - not busy
+     *      - concurent count not reached
      *
      * @return {Promise<void>}
      */
@@ -145,7 +146,7 @@ class Session {
                 Pair.stopped = false;
                 delete Pair.stopped_until;
                 await Pair.handle_place_buy();
-            } else if (!Pair.order_id && !Pair.sell_placed && !Pair.busy) {
+            } else if (!Pair.order_id && !Pair.sell_placed && !Pair.busy && !this.isConcurrentCountBusted()) {
                 print(pair, 'Re-trying buy for stagnant pair...');
                 await Pair.handle_place_buy();
             }
