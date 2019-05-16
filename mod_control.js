@@ -12,10 +12,10 @@ process.on('uncaughtException', err => console.log(err));
 process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
 
 const options = {
-    log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 5, // todo change
+    log_level: 2, // 1: normal, 2: a bit spammy, 3: everything
+    concurent_count_max: 15, // todo change
     position_divider_default: 70.5,
-    position_divider: 2000,
+    position_divider: 71,
     num_pairs: 70
 };
 
