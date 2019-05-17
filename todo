@@ -1,14 +1,29 @@
 # todo change for bearish options when time comes
 
 trade bot:
-    Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
+    urgent:
+        timeout during PY_1 corrupting files? fall back to previous
+        if (this.fall_back_old_klines) {
+            this.fall_back_old_klines = false;
+            return;
+        }
 
-    handle place should wrap a promise?
+    Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
 
     Future: change its not 70 limit orders at all time but one order placed when price reached
             so bigger positions can be placed
 
     sometimes its having a sell orders with unassed small available balance such as min notional size
+
+    sometimes WS response of fills is super spammy and causing multiple parralles handle_sell:
+        solution tried:
+
+        if (this.is_handling_place_sell) {
+             print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
+             return;
+        }
+
+    what about place_sell_order not having conditions, no retry?
 
 
 backtest:

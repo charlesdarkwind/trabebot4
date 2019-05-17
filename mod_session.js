@@ -26,6 +26,8 @@ class Session {
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.Pairs = {};
         this.comp_name = process.env['COMPUTERNAME'];
+        this.fall_back_old_klines = false;
+        this.runned_once = false;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -239,8 +241,12 @@ class Session {
             });
 
             ls.on('close', code => {
-                if (this.log_level >= 3 || code != 0)
+                if (this.log_level >= 3 || code != 0) {
                     print('PY_1', `Python 1 process exited with code ${code}`);
+                    this.fall_back_old_klines = true;
+                    if (!this.runned_once) process.exit(1);
+                }
+                this.runned_once = true;
                 if (code !== 0) reject();
                 resolve();
             });
@@ -290,6 +296,11 @@ class Session {
     async callDfRecalc() {
         await new Promise((resolve, reject) => {
 
+            if (this.fall_back_old_klines) {
+                this.fall_back_old_klines = false;
+                return;
+            }
+
             let ls = undefined;
             if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
                 ls = spawn('python', ['mod_control.py', '--server'], {cwd: 'W:\\backtester4\\sample'});
@@ -315,7 +326,6 @@ class Session {
                 if (this.log_level >= 3 || code != 0)
                     print('PY_2', `Python 2 process exited with code ${code}`);
                 if (code !== 0) reject();
-
                 // Parse DFs
                 this.parseDF();
                 resolve();
