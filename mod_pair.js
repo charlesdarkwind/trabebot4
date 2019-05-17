@@ -40,7 +40,7 @@ class Pair {
         this.partial_fill_prices_sell = [];
         this.last_sell_placed_time = Date.now();
         this.comp_name = process.env['COMPUTERNAME'];
-        this.first_buy = false;
+        this.first_buy_placed = false;
         this.buy_try_count = 0;
         this.sell_try_count = 0;
     }
@@ -346,10 +346,10 @@ class Pair {
             print(this.pair, 'Placing limit buy...');
 
         // Check balances again
-        if (!this.first_buy) {
-            this.first_buy = true;
+        if (this.first_buy_placed) {
             await this.S.initBalances();
         }
+        this.first_buy_placed = true;
 
         // Set and get position_size
         const positionSize = this.setPositionSize();
@@ -366,7 +366,7 @@ class Pair {
         this.setMinNotionalState();
         if (!this.position_size_is_over_minNotional) {
             if (this.log_level >= 2)
-                print(this.pair, 'Pos size of buy would be under minNot, not buying.');
+                print(this.pair, `Pos size of buy would be under minNot, not buying. ${this.getTotalBalance()}`);
             this.busy = false;
             return;
         }
