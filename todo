@@ -5,6 +5,7 @@ trade bot:
     and : sell fails (eg -105)
     then: another sell is never placed
     solution tried: this.is_handling_place_sell = false; inside place_sell_error
+    potential solutions: put it in FILL ws response?
 
     Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
 

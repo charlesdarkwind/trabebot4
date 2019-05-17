@@ -313,6 +313,7 @@ class Pair {
      * @param {Object} e - Error object
      */
     async buy_error(e) {
+        this.is_handling_place_buy = false;
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
             if (this.log_level >= 2)
                 print(this.pair, 'Buy -1015, retrying...');
@@ -507,7 +508,7 @@ class Pair {
         const price = parseFloat(data.p);
         const qty = parseFloat(data.q);
         this.NEW_LIMIT_SELL_RECEIVED = true;
-        this.last_sell_line = this.sell_line;
+        this.last_sell_line = price; // use price reported instead of sell_line so manual orders can be re-placed
         this.sell_order_id = data.i;
         this.sell_placed = true;
         this.busy = false;
