@@ -244,7 +244,10 @@ class Session {
                 if (this.log_level >= 3 || code != 0) {
                     print('PY_1', `Python 1 process exited with code ${code}`);
                     this.fall_back_old_klines = true;
-                    if (!this.runned_once) process.exit(1);
+                    if (!this.runned_once && code != 0) {
+                        print('system', 'Exiting since first run and no treshold fallback');
+                        process.exit(1);
+                    }
                 }
                 this.runned_once = true;
                 if (code !== 0) reject();
