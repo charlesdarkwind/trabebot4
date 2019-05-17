@@ -276,7 +276,7 @@ class Pair {
     async cancel_buy() {
         this.busy = true;
 
-        if (this.log_level >= 2)
+        if (this.log_level >= 3)
             print(this.pair, 'Canceling buy...');
 
         await new Promise((resolve, reject) => {
@@ -425,7 +425,7 @@ class Pair {
     async cancel_sell() {
         this.busy = true;
 
-        if (this.log_level >= 2)
+        if (this.log_level >= 3)
             print(this.pair, 'Canceling sell...');
 
         await new Promise((resolve, reject) => {
@@ -475,7 +475,7 @@ class Pair {
         if (this.validate() !== true) return;
         this.busy = true;
 
-        if (this.log_level >= 2)
+        if (this.log_level >= 3)
             print(this.pair, 'Placing limit sell...');
 
         // Check balances again

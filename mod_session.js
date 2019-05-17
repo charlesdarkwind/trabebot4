@@ -68,7 +68,7 @@ class Session {
             P.round = 10 ** P.precision;
         }
 
-        if (this.log_level >= 2)
+        if (this.log_level >= 3)
             print('system', 'New exchange infos queried')
     }
 
@@ -166,8 +166,6 @@ class Session {
      */
     async handleStoppedForConcurrent() {
         if (this.isConcurrentCountBusted()) return;
-        // if (this.log_level >= 3)
-        //     print('system', `Concurent count is not reached, checking for pairs to re-start.. ${this.isConcurrentCountBusted()}`);
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             if (Pair.stopped_for_concurrent && !Pair.order_id && !Pair.buy_placed) {
@@ -191,8 +189,6 @@ class Session {
      */
     async handleConcurentCount() {
         if (!this.isConcurrentCountBusted()) return;
-        // if (this.log_level >= 3)
-        //     print('system', `Concurent count is reached, checking for orders to cancel.. ${!this.isConcurrentCountBusted()}`);
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             if (!Pair.stopped_for_concurrent && (Pair.order_id || Pair.buy_placed)) {
@@ -243,7 +239,7 @@ class Session {
             });
 
             ls.on('close', code => {
-                if (this.log_level >= 2 || code != 0)
+                if (this.log_level >= 3 || code != 0)
                     print('PY_1', `Python 1 process exited with code ${code}`);
                 if (code !== 0) reject();
                 resolve();
@@ -270,10 +266,9 @@ class Session {
             const len = this.tresholds[pair].sell_line.length;
             Pair.sell_line = this.tresholds[pair].sell_line[len - 1];
             Pair.buy_line = this.tresholds[pair].buy_line[len - 1];
-            // print(pair, `sell line: ${Pair.sell_line}, buy line: ${Pair.buy_line} ${this.tresholds['time'][len - 1]}`);
         }
 
-        if (this.log_level >= 2) {
+        if (this.log_level >= 3) {
             const or = this.tresholds['time'].sort((a, b) => a - b);
             const oldest = moment(or[0]).format('MMM D, H:mm');
             const soonest = moment(or[or.length - 1]).format('MMM D, H:mm');
@@ -317,7 +312,7 @@ class Session {
             });
 
             ls.on('close', code => {
-                if (this.log_level >= 2 || code != 0)
+                if (this.log_level >= 3 || code != 0)
                     print('PY_2', `Python 2 process exited with code ${code}`);
                 if (code !== 0) reject();
 
