@@ -456,6 +456,7 @@ class Pair {
     /////////////////////////////////////////////////////////
 
     async sell_error(e) {
+        this.is_handling_place_sell = false;
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1015) {
             if (this.log_level >= 2)
                 print(this.pair, 'Sell -1015, retrying...');

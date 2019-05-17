@@ -1,12 +1,10 @@
 # todo change for bearish options when time comes
 
 trade bot:
-    urgent:
-        timeout during PY_1 corrupting files? fall back to previous
-        if (this.fall_back_old_klines) {
-            this.fall_back_old_klines = false;
-            return;
-        }
+    if : Pair is already trying to handle place sell in parallel, returning...
+    and : sell fails (eg -105)
+    then: another sell is never placed
+    solution tried: this.is_handling_place_sell = false; inside place_sell_error
 
     Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
 
