@@ -43,6 +43,8 @@ class Pair {
         this.first_buy_placed = false;
         this.buy_try_count = 0;
         this.sell_try_count = 0;
+        this.is_handling_place_sell = false;
+        this.is_handling_place_buy = false;
     }
 
     rnd(num) {
@@ -548,6 +550,12 @@ class Pair {
                 print(this.pair, `Cant place buy in queue, busy, try in 2 secs... ${this.buy_try_count} tries`);
 
             setTimeout(async () => {
+
+                if (this.is_handling_place_buy) {
+                    print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
+                    return;
+                }
+
                 this.buy_try_count++;
                 await this.handle_place_buy();
             }, 2000);
@@ -576,6 +584,7 @@ class Pair {
         } else if (this.log_level >= 2) {
             print(this.pair, `Cant place buy queue: Valid ${isValid} queue ${is_in_queue}`);
         }
+        this.is_handling_place_buy = false;
     }
 
     async PARTIALLY_FILLED_LIMIT_SELL(data) {
@@ -638,6 +647,12 @@ class Pair {
                 print(this.pair, `Cant place sell in queue, busy, try in 2 secs... ${this.sell_try_count} tries`);
 
             setTimeout(async () => {
+
+                if (this.is_handling_place_sell) {
+                    print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
+                    return;
+                }
+
                 this.sell_try_count++;
                 await this.handle_place_sell();
             }, 2000);
@@ -669,6 +684,7 @@ class Pair {
         } else if (this.log_level >= 2) {
             print(this.pair, `Cant place sell: Valid ${isValid} queue ${is_in_queue} minNot ${this.quantity_total_is_over_minNotional}`);
         }
+        this.is_handling_place_sell = false;
     }
 
     async PARTIALLY_FILLED_LIMIT_BUY(data) {
