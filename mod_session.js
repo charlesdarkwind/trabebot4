@@ -155,7 +155,7 @@ class Session {
                 && !Pair.order_id
                 && !Pair.sell_placed
                 && !this.isConcurrentCountBusted()
-                && position_size_is_over_minNotional
+                && Pair.position_size_is_over_minNotional
                 && !Pair.is_handling_place_buy
             ) {
                 print(pair, 'Re-trying buy for stagnant pair...');
