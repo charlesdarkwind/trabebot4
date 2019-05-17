@@ -8,6 +8,8 @@ trade bot:
     Future: change its not 70 limit orders at all time but one order placed when price reached
             so bigger positions can be placed
 
+    sometimes its having a sell orders with unassed small available balance such as min notional size
+
 
 backtest:
     high priority:

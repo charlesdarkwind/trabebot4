@@ -556,11 +556,11 @@ class Pair {
         this.buy_try_count = 0;
 
         const isValid = this.validate();
-        this.setMinNotionalState();
-        const hasMinNot = this.position_size_is_over_minNotional; // todo should fetch balance before?
+        // this.setMinNotionalState();
+        // const hasMinNot = this.position_size_is_over_minNotional; // todo should fetch balance before?
         const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
 
-        if (isValid && !is_in_queue && !this.S.isConcurrentCountBusted() && hasMinNot) { // conditions
+        if (isValid && !is_in_queue && !this.S.isConcurrentCountBusted()/* && hasMinNot*/) { // conditions
             this.busy = true;
 
             // Cancel other buy
@@ -574,7 +574,7 @@ class Pair {
             await this.limiter.limit('place_buy_order', this);
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place buy queue: Valid ${isValid} queue ${is_in_queue} minNot ${hasMinNot}`);
+            print(this.pair, `Cant place buy queue: Valid ${isValid} queue ${is_in_queue}`);
         }
     }
 
