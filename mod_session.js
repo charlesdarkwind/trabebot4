@@ -148,7 +148,13 @@ class Session {
                 Pair.stopped = false;
                 delete Pair.stopped_until;
                 await Pair.handle_place_buy();
-            } else if (!Pair.order_id && !Pair.sell_placed && !Pair.busy && !this.isConcurrentCountBusted()) {
+            } else if (
+                !Pair.stopped
+                && !Pair.order_id
+                && !Pair.sell_placed
+                && !Pair.busy
+                && !this.isConcurrentCountBusted()
+            ) {
                 print(pair, 'Re-trying buy for stagnant pair...');
                 await Pair.handle_place_buy();
             }

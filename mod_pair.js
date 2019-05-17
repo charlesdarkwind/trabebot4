@@ -416,7 +416,7 @@ class Pair {
 
     async cancel_sell_error(e) {
         this.error_count++;
-        print(this.pair, 'Error when canceling sell order, checking orders...', err);
+        print(this.pair, 'Error when canceling sell order, checking orders...', e);
         await this.check_sell_orders();
     }
 
@@ -544,21 +544,22 @@ class Pair {
      */
     async handle_place_buy() {
 
+        if (this.is_handling_place_buy) {
+            print(this.pair, 'Pair is already trying to handle place buy in parallel, returning...');
+            return;
+        }
+        this.is_handling_place_buy = true;
+
         // Retry until not busy, in case canceling, (not supposed to be placing orders since its removing doubles from queue)
         if (this.busy || this.cancelling_all_orders) {
             if (this.log_level >= 2)
                 print(this.pair, `Cant place buy in queue, busy, try in 2 secs... ${this.buy_try_count} tries`);
 
             setTimeout(async () => {
-
-                if (this.is_handling_place_buy) {
-                    print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
-                    return;
-                }
-
                 this.buy_try_count++;
                 await this.handle_place_buy();
             }, 2000);
+
             return;
         }
         this.buy_try_count = 0;
@@ -641,21 +642,22 @@ class Pair {
      */
     async handle_place_sell() {
 
+        if (this.is_handling_place_sell) {
+            print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
+            return;
+        }
+        this.is_handling_place_sell = true;
+
         // Retry until not busy, in case canceling, (not supposed to be placing orders since its removing doubles from queue)
         if (this.busy || this.cancelling_all_orders) {
             if (this.log_level >= 2)
                 print(this.pair, `Cant place sell in queue, busy, try in 2 secs... ${this.sell_try_count} tries`);
 
             setTimeout(async () => {
-
-                if (this.is_handling_place_sell) {
-                    print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
-                    return;
-                }
-
                 this.sell_try_count++;
                 await this.handle_place_sell();
             }, 2000);
+
             return;
         }
         this.sell_try_count = 0;
