@@ -143,6 +143,7 @@ class Session {
         const now = Date.now();
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
+            Pair.setMinNotionalState();
             if (Pair.stopped && now > Pair.stopped_until) {
                 print(pair, 'Re-starting stopped pair...');
                 Pair.stopped = false;
@@ -150,10 +151,12 @@ class Session {
                 await Pair.handle_place_buy();
             } else if (
                 !Pair.stopped
+                && !Pair.busy
                 && !Pair.order_id
                 && !Pair.sell_placed
-                && !Pair.busy
                 && !this.isConcurrentCountBusted()
+                && position_size_is_over_minNotional
+                && !Pair.is_handling_place_buy
             ) {
                 print(pair, 'Re-trying buy for stagnant pair...');
                 await Pair.handle_place_buy();

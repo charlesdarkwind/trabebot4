@@ -545,7 +545,8 @@ class Pair {
     async handle_place_buy() {
 
         if (this.is_handling_place_buy) {
-            print(this.pair, 'Pair is already trying to handle place buy in parallel, returning...');
+            if (this.log_level >= 2)
+                print(this.pair, 'Pair is already trying to handle place buy in parallel, returning...');
             return;
         }
         this.is_handling_place_buy = true;
@@ -643,7 +644,8 @@ class Pair {
     async handle_place_sell() {
 
         if (this.is_handling_place_sell) {
-            print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
+            if (this.log_level >= 2)
+                print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
             return;
         }
         this.is_handling_place_sell = true;
