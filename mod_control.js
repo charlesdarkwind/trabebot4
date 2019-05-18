@@ -1,13 +1,6 @@
 require('dotenv').config({path: 'variables.env'});
-const mongoose = require('mongoose');
 const fs = require('fs');
-const binance = require('./binance');
-const Session = require('./mod_session');
-const Limiter = require('./mod_limiter');
-const {print} = require('./mod_helpers');
-const {mod_data} = require('./mod_data');
-const moment = require('moment');
-const format = 'MMM D, H:mm:ss';
+const mongoose = require('mongoose');
 
 process.on('uncaughtException', err => console.log(err));
 process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
@@ -30,6 +23,13 @@ const options = {
 };
 
 require('./models/Log');
+const binance = require('./binance');
+const Session = require('./mod_session');
+const Limiter = require('./mod_limiter');
+const {print} = require('./mod_helpers');
+const {mod_data} = require('./mod_data');
+const moment = require('moment');
+const format = 'MMM D, H:mm:ss';
 
 /** START
  *      1. Create pairs objs
