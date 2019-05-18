@@ -1,3 +1,4 @@
+const Session = mongoose.model('Session');
 const os = require('os');
 const binance = require('./binance');
 const fs = require('fs');

@@ -1,4 +1,5 @@
 require('dotenv').config({path: 'variables.env'});
+const mongoose = require('mongoose');
 const fs = require('fs');
 const binance = require('./binance');
 const Session = require('./mod_session');
@@ -11,6 +12,15 @@ const format = 'MMM D, H:mm:ss';
 process.on('uncaughtException', err => console.log(err));
 process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
 
+mongoose.set('useFindAndModify', false);
+mongoose.connect(process.env.DATABASE, {
+    useNewUrlParser: true,
+    reconnectTries: Number.MAX_VALUE,
+    reconnectInterval: 2000
+});
+mongoose.Promise = global.Promise;
+mongoose.connection.on('error', err => console.warn(`mongoose connection error: ${err}`));
+
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
     concurent_count_max: 15, // todo change
@@ -18,6 +28,8 @@ const options = {
     position_divider: 71.1,
     num_pairs: 70
 };
+
+require('./models/Log');
 
 /** START
  *      1. Create pairs objs

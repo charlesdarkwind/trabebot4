@@ -253,6 +253,7 @@ class Pair {
         this.error_count++;
         print(this.pair, 'Error when canceling buy order, checking orders...', e);
         await this.check_buy_orders();
+        this.busy = false;  // todo good?
     }
 
     cancel_buy_success(res) {
@@ -419,6 +420,7 @@ class Pair {
         this.error_count++;
         print(this.pair, 'Error when canceling sell order, checking orders...', e);
         await this.check_sell_orders();
+        this.busy = false;
     }
 
     cancel_sell_success(res) {

@@ -1,10 +1,30 @@
+const mongoose = require('mongoose');
+const Log = mongoose.model('Log');
 const moment = require('moment');
 const {spawn} = require('child_process');
+
+const saveLog = data => {
+    const hasConnection = mongoose.connection.readyState == 1;
+    if (!hasConnection) {
+        console.log('Mongoose: No mongo connection found.');
+        return;
+    }
+     new Log({
+         emitter: data.emitter,
+         message: data.message,
+         date: data.date,
+         error: data.error,
+         data: data.data
+     }).save((err, doc) => {
+         if (err) console.log('mongoose Database error: ', err);
+     });
+};
 
 const print = (pair, message, e, other) => {
     try {
         let str = `${pair.padStart(9)} | ${message}`;
-        str += `${' '.repeat(str.length > 100 ? 100 : 100 - str.length)}| ${moment().format('MMM D, H:mm:ss')}`;
+        let date = moment().format('MMM D, H:mm:ss');
+        str += `${' '.repeat(str.length > 100 ? 100 : 100 - str.length)}| ${date}`;
         console.log(str);
         if (other) console.warn(other);
         if (e) {
@@ -17,8 +37,15 @@ const print = (pair, message, e, other) => {
             if (errStr && e.body) console.warn(`\n${str}\n${errStr}`); // e.body? dont show trace
             else if (errStr) console.trace(`\n${str}\n${errStr}\n`); // show trace
             if (!body && typeof e === 'object') console.warn(e); // any error w/o body at the end (can be big)
-            console.warn(e.stack); // todo test
+            console.warn(e.stack);
         }
+        saveLog({
+            emitter: pair,
+            message,
+            date,
+            error: e,
+            data: other
+        });
     } catch (err) {
         const errStr = e ? e.body || JSON.stringify(e) : 'no bot err';
         console.warn(
