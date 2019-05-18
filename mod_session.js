@@ -242,29 +242,28 @@ class Session {
                 print('PY_1', 'Writing klines...');
 
             ls.stdout.on('data', msg => { // Number of new klines and symbol infos printed
-                // print('PY_1', msg);
+                print('PY_1', msg);
             });
 
             ls.stderr.on('data', data => {
+                if (typeof data == 'object') print(Object.keys(data));
+                else print(typeof data);
                 print('PY_1', 'Err during python 1 klines fetching (REST)', data.toString());
             });
 
             ls.on('close', code => {
-                if (this.log_level >= 3 || code !== 0) {
+
+                if (this.log_level >= 3 || code !== 0)
                     print('PY_1', `Python 1 process exited with code ${code}`);
-                    // Exit if fail on very first klines fetch err or second in a row
-                    if (!this.runned_once && code !== 0 || this.PY_1_error_count > 0) {
-                        print('system', `Exiting since first run and no treshold fallback ${this.runned_once} ${code}`);
-                        process.exit(1);
-                    }
+
+                // Exit if fail on very first klines fetch err or second in a row
+                if (!this.runned_once && code !== 0) {
+                    print('system', `Exiting since first run and no treshold fallback.`);
+                    process.exit(1);
                 }
                 this.runned_once = true;
-                if (code !== 0) {
-                    this.PY_1_error_count++;
-                    reject();
-                } else {
-                    this.PY_1_error_count = 0;
-                }
+
+                if (code !== 0) reject();
                 resolve();
             });
         });

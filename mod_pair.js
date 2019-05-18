@@ -555,11 +555,13 @@ class Pair {
 
         // Retry until not busy, in case canceling, (not supposed to be placing orders since its removing doubles from queue)
         if (this.busy || this.cancelling_all_orders) {
+
             if (this.log_level >= 2)
                 print(this.pair, `Cant place buy in queue, busy, try in 2 secs... ${this.buy_try_count} tries`);
 
+            this.buy_try_count++;
+
             setTimeout(async () => {
-                this.buy_try_count++;
                 await this.handle_place_buy();
             }, 2000);
 
