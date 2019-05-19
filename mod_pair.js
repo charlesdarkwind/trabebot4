@@ -346,17 +346,15 @@ class Pair {
         if (this.validate() !== true) return;
         this.busy = true;
 
-        if (this.log_level >= 3)
-            print(this.pair, 'Placing limit buy...');
-
         // Check balances again
-        if (this.first_buy_placed) {
-            await this.S.initBalances();
-        }
-        this.first_buy_placed = true;
+        await this.S.initBalances();
 
         // Set and get position_size
         const positionSize = this.setPositionSize();
+        const price = this.rnd(this.buy_line).toFixed(8);
+
+        if (this.log_level >= 3)
+            print(this.pair, `Placing limit buy... qty: ${positionSize} price: ${price}`);
 
         // Check lot_size (has MinQty)
         if (this.position_size < this.minQty) {
@@ -390,7 +388,7 @@ class Pair {
 
         // Place buy
         await new Promise((resolve, reject) => {
-            binance.buy(this.pair, positionSize, this.rnd(this.buy_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
+            binance.buy(this.pair, positionSize, price, {type: 'LIMIT'}, (e, res) => {
                 if (e) this.buy_error(e);
                 else this.buy_success(res);
                 resolve();
@@ -481,13 +479,14 @@ class Pair {
         if (this.validate() !== true) return;
         this.busy = true;
 
-        if (this.log_level >= 3)
-            print(this.pair, 'Placing limit sell...');
-
         // Check balances again
         await this.S.initBalances();
 
         const qty = binance.roundStep(this.balance_available, this.stepSize);
+        const price = this.rnd(this.sell_line).toFixed(8);
+
+        if (this.log_level >= 3)
+            print(this.pair, `Placing limit sell... qty: ${qty} price: ${price}`);
 
         // Check lot_size (has MinQty)
         if (qty < this.minQty) {
@@ -498,7 +497,7 @@ class Pair {
         }
 
         await new Promise((resolve, reject) => {
-            binance.sell(this.pair, qty, this.rnd(this.sell_line).toFixed(8), {type: 'LIMIT'}, (e, res) => {
+            binance.sell(this.pair, qty, price, {type: 'LIMIT'}, (e, res) => {
                 if (e) this.sell_error(e);
                 else this.sell_success(res);
                 resolve();
