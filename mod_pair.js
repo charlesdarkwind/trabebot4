@@ -607,7 +607,7 @@ class Pair {
 
         print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
 
-        if (!this.is_handling_place_buy)
+        if (!this.is_handling_place_buy && !this.busy)
             this.handle_place_buy();
     }
 
@@ -623,7 +623,7 @@ class Pair {
 
         print(this.pair, `FILLED SELL (100%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
 
-        if (!this.is_handling_place_buy)
+        if (!this.is_handling_place_buy && !this.busy)
             this.handle_place_buy();
     }
 
@@ -711,7 +711,7 @@ class Pair {
 
         print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy}`);
 
-        if (!this.is_handling_place_sell)
+        if (!this.is_handling_place_sell && !this.busy)
             this.handle_place_sell();
     }
 
@@ -725,7 +725,7 @@ class Pair {
 
         print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy.toFixed(8)}`);
 
-        if (!this.is_handling_place_sell)
+        if (!this.is_handling_place_sell && !this.busy)
             this.handle_place_sell();
     }
 
