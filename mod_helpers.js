@@ -26,10 +26,10 @@ const print = (pair, message, e, other) => {
         let date = moment().format('MMM D, H:mm:ss');
         str += `${' '.repeat(str.length > 100 ? 100 : 100 - str.length)}| ${date}`;
         console.log(str);
+        let errStr = '', trace;
         if (other) console.warn(other);
         if (e) {
             const body = e && e.body ? JSON.parse(e.body) : null;
-            let errStr = '', trace;
             if (body && !body.msg && !body.code) errStr += `body: ${body.msg} ${body.code}\n`;
             else if (body) errStr += `${body.msg} ${body.code}\n`; // message, 1st line
             if (typeof e === 'string') errStr = `${e}\n`; // or passed strings
@@ -43,7 +43,7 @@ const print = (pair, message, e, other) => {
             emitter: pair,
             message,
             date,
-            error: e,
+            error: errStr ? errStr : '',
             data: other
         });
     } catch (err) {
