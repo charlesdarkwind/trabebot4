@@ -16,7 +16,7 @@ const saveLog = data => {
          error: data.error,
          data: data.data
      }).save((err, doc) => {
-         if (err) console.log('mongoose Database error: ', err);
+         if (err) console.log('mongoose Database error: ', err.message || err);
      });
 };
 
