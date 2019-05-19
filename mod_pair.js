@@ -605,8 +605,10 @@ class Pair {
         const lastQty = data.Y;
         const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
 
-        print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price_sell}, profit: ${profitPercent.toFixed(2)}%`);
-        this.handle_place_buy();
+        print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
+
+        if (!this.is_handling_place_buy)
+            this.handle_place_buy();
     }
 
     async FILLED_LIMIT_SELL(data) {
@@ -619,8 +621,10 @@ class Pair {
         const lastQty = data.Y;
         const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
 
-        print(this.pair, `FILLED SELL (100%) at price: ${this.last_executed_price_sell}, profit: ${profitPercent.toFixed(2)}%`);
-        this.handle_place_buy();
+        print(this.pair, `FILLED SELL (100%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
+
+        if (!this.is_handling_place_buy)
+            this.handle_place_buy();
     }
 
     /////////////////////////////////////////////////////////
@@ -706,7 +710,9 @@ class Pair {
         this.setFilledPercent();
 
         print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy}`);
-        this.handle_place_sell();
+
+        if (!this.is_handling_place_sell)
+            this.handle_place_sell();
     }
 
     async FILLED_LIMIT_BUY(data) {
@@ -718,7 +724,9 @@ class Pair {
         this.percent_filled = 100;
 
         print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy.toFixed(8)}`);
-        this.handle_place_sell();
+
+        if (!this.is_handling_place_sell)
+            this.handle_place_sell();
     }
 
     /////////////////////////////////////////////////////////
