@@ -1,6 +1,8 @@
 # todo change for bearish options when time comes
 
 trade bot:
+    check periodically for unassed coin balance to sell? keep eye open for if this prob occurs.
+
     if : Pair is already trying to handle place sell in parallel, returning...
     and : sell fails (eg -105)
     then: another sell is never placed
