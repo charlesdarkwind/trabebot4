@@ -123,15 +123,11 @@ class Pair {
         const totalBTC = this.S.balance_btc_available + this.S.balance_btc_in_order;
         this.positionSizeInBTC = totalBTC / this.S.options.position_divider;
         this.positionSizeRawInCoin = (this.positionSizeInBTC - this.getTotalBalance() * this.buy_line) / this.buy_line;
+        let positionSize = binance.roundStep(this.positionSizeRawInCoin - this.getTotalBalance(), this.stepSize);
 
-        const boughtQuantity = this.getTotalBalance();
-        let positionSize = binance.roundStep(this.positionSizeRawInCoin, this.stepSize);
-
-        // Get position Size minus already bought
-        positionSize -= binance.roundStep(boughtQuantity, this.stepSize);
-        // Set the float version
+        // Set the float
         this.position_size = parseFloat(positionSize);
-        // Return the string version
+        // Return the string
         return positionSize;
     }
 
