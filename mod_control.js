@@ -26,7 +26,7 @@ require('./models/Log');
 const binance = require('./binance');
 const Session = require('./mod_session');
 const Limiter = require('./mod_limiter');
-const {print} = require('./mod_helpers');
+const { print, repairDatabase } = require('./mod_helpers');
 const {mod_data} = require('./mod_data');
 const moment = require('moment');
 const format = 'MMM D, H:mm:ss';
@@ -60,6 +60,12 @@ const start = async () => {
     setTimeout(async () => {
         await S.placeFirstBuys();
     }, 2000);
+
+    /** 24 hours
+     *  INTERVAL:
+     *      - compact database
+     * */
+    setInterval(repairDatabase, 60000 * 60 * 24);
 
     /** 2 hours
      *  INTERVAL:

@@ -39,13 +39,13 @@ const print = (pair, message, e, other) => {
             if (!body && typeof e === 'object') console.warn(e); // any error w/o body at the end (can be big)
             console.warn(e.stack);
         }
-        // saveLog({
-        //     emitter: pair,
-        //     message,
-        //     date,
-        //     error: errStr ? errStr : '',
-        //     data: other
-        // });
+        saveLog({
+            emitter: pair,
+            message,
+            date,
+            error: errStr ? errStr : '',
+            data: other
+        });
     } catch (err) {
         const errStr = e ? e.body || JSON.stringify(e) : 'no bot err';
         console.warn(
@@ -62,6 +62,13 @@ exports.to = promise => {
         return [null, data];
     })
         .catch(err => [err]);
+};
+
+exports.repairDatabase = () => {
+    print('mongoose', 'Compacting DB filesystem...');
+    mongoose.connection.db.command({ repairDatabase: 1 }, (err, res) => {
+        if (err) print('mongoose', 'Error when repairing DB.', err);
+    });
 };
 
 // exports.pythonProg = new Promise((success, err) => {
