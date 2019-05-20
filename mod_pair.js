@@ -616,7 +616,7 @@ class Pair {
         const lastQty = data.Y;
         const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
 
-        print(this.pair, `FILLED SELL (100%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
+        print(this.pair, `FILLED SELL (0%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
 
         if (!this.is_handling_place_buy)
             this.handle_place_buy();
