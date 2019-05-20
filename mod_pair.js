@@ -126,12 +126,12 @@ class Pair {
 
         const boughtQuantity = this.getTotalBalance();
         let positionSize = binance.roundStep(this.positionSizeRawInCoin, this.stepSize);
-        positionSize -= boughtQuantity;
 
-        // Set the float
+        // Get position Size minus already bought
+        positionSize -= binance.roundStep(boughtQuantity, this.stepSize);
+        // Set the float version
         this.position_size = parseFloat(positionSize);
-
-        // Return the string
+        // Return the string version
         return positionSize;
     }
 
