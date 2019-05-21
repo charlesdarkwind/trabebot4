@@ -220,6 +220,8 @@ class Pair {
             this.order_id = buyOrders[0].orderId;
             print(this.pair, 'CHECK: buy order found with different ID, canceling...');
             await this.cancel_buy();
+        } else {
+            print(this.pair, 'Pair had no buy orders');
         }
     }
 
@@ -238,6 +240,8 @@ class Pair {
             this.sell_order_id = sellOrders[0].orderId;
             print(this.pair, 'CHECK: sell order found with different ID, canceling...');
             await this.cancel_sell();
+        } else {
+            print(this.pair, 'Pair had no sell orders');
         }
     }
 

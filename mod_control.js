@@ -61,11 +61,11 @@ const start = async () => {
         await S.placeFirstBuys();
     }, 2000);
 
-    /** 24 hours
+    /** 48 hours
      *  INTERVAL:
      *      - compact database
      * */
-    setInterval(repairDatabase, 60000 * 60 * 24);
+    setInterval(repairDatabase, 60000 * 60 * 48);
 
     /** 2 hours
      *  INTERVAL:
@@ -105,9 +105,11 @@ const start = async () => {
     /** 30 sec
      *  INTERVAL:
      *      - Check concurent count, stop all orders if busted. (Its already being checked before every order placement)
+     *      - Check for pairs with balance unassed
      */
     setInterval(async () => {
         await S.handleConcurentCount();
+        await S.handleUnassessedBalances();
     }, 30000);
 
     /**

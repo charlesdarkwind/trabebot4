@@ -164,6 +164,28 @@ class Session {
         }));
     }
 
+    /** Place sell order for pairs that have unassessed balances.
+     *
+     * Unassessed coin balances to sell are hard to avoid, either this or constant place_buy_order spam...
+     *
+     * @return {Promise<void>}
+     */
+    async handleUnassessedBalances() {
+        await Promise.all(this.pairs.map(async pair => {
+            const Pair = this.Pairs[pair];
+            Pair.setMinNotionalState();
+            if (!Pair.stopped
+                && !Pair.busy
+                && !Pair.sell_order_id
+                && Pair.quantity_available_is_over_minNotional
+                && !Pair.is_handling_place_sell
+            ) {
+                print(pair, 'Re-trying sell for unassessed coin balance...');
+                await Pair.handle_place_sell();
+            }
+        }));
+    }
+
     /** Re-place buy order for pairs whom buy was canceled because the concurrent count max was reached.
      *
      * Conditions:
