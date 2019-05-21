@@ -547,11 +547,11 @@ class Pair {
      */
     async handle_place_buy() {
 
-        // if (this.is_handling_place_buy) {
-        //     if (this.log_level >= 2)
-        //         print(this.pair, 'Pair is already trying to handle place buy in parallel, returning...');
-        //     return;
-        // }
+        if (this.is_handling_place_buy) {
+            if (this.log_level >= 2)
+                print(this.pair, 'Pair is already trying to handle place buy in parallel, returning...');
+            return;
+        }
         this.is_handling_place_buy = true;
 
         // Retry until not busy, in case canceling, (not supposed to be placing orders since its removing doubles from queue)
@@ -566,7 +566,7 @@ class Pair {
                 await this.handle_place_buy();
             }, 2000);
 
-            return;
+            return; // Return but retrying
         }
         this.buy_try_count = 0;
 
@@ -652,11 +652,11 @@ class Pair {
      */
     async handle_place_sell() {
 
-        // if (this.is_handling_place_sell) {
-        //     if (this.log_level >= 2)
-        //         print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
-        //     return;
-        // }
+        if (this.is_handling_place_sell) {
+            if (this.log_level >= 2)
+                print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
+            return;
+        }
         this.is_handling_place_sell = true;
 
         // Retry until not busy, in case canceling, (not supposed to be placing orders since its removing doubles from queue)
@@ -669,7 +669,7 @@ class Pair {
                 await this.handle_place_sell();
             }, 2000);
 
-            return;
+            return; // Return but retrying
         }
         this.sell_try_count = 0;
 
