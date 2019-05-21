@@ -182,6 +182,13 @@ class Session {
             ) {
                 print(pair, 'Re-trying sell for unassessed coin balance...');
                 await Pair.handle_place_sell();
+            } else if (!Pair.stopped // todo remove
+                && !Pair.busy
+                && Pair.sell_order_id
+                && Pair.quantity_available_is_over_minNotional
+                && !Pair.is_handling_place_sell
+            ) {
+                print(pair, '!!!Was looking to retry sell but has sell_order id.');
             }
         }));
     }
