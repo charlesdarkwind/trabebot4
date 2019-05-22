@@ -157,10 +157,10 @@ class Pair {
 
     cancel_all_orders_error(e, side) { // both sell and buys
         this.error_count++;
-        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011)
+        print(this.pair, `Cancell all ${side} orders error:`, e);
+        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011) {
             print(this.pair, 'Unknown order -2011');
-        else
-            print(this.pair, `Cancell all ${side} orders error.`, e);
+        }
     }
 
     cancel_all_orders_success(res, side) { // both sell and buys
@@ -221,6 +221,8 @@ class Pair {
             print(this.pair, 'CHECK: buy order found with different ID, canceling...');
             await this.cancel_buy();
         } else {
+            delete this.order_id;
+            this.buy_placed = false;
             print(this.pair, 'Pair had no buy orders');
         }
     }
@@ -241,6 +243,7 @@ class Pair {
             print(this.pair, 'CHECK: sell order found with different ID, canceling...');
             await this.cancel_sell();
         } else {
+            delete this.sell_order_id;
             print(this.pair, 'Pair had no sell orders');
         }
     }
@@ -251,7 +254,7 @@ class Pair {
 
     async cancel_buy_error(e) {
         this.error_count++;
-        print(this.pair, 'Error when canceling buy order, checking orders...', e);
+        print(this.pair, `Error when canceling buy order, checking orders... ${this.order_id} ${this.buy_placed}`, e);
         await this.check_buy_orders();
         this.busy = false;  // todo good?
     }

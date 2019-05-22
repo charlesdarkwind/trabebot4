@@ -89,6 +89,7 @@ const start = async () => {
         await S.callDfRecalc();
         await S.initBalances();
         await S.handle_new_prices();
+        await S.handleUnassessedBalances(); // todo remove
     }, 60000 * 10);
 
     /** 2 mins
@@ -109,7 +110,7 @@ const start = async () => {
      */
     setInterval(async () => {
         await S.handleConcurentCount();
-        await S.handleUnassessedBalances();
+        // await S.handleUnassessedBalances(); //todo put back
     }, 30000);
 
     /**
