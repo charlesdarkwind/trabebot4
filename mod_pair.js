@@ -157,7 +157,7 @@ class Pair {
 
     cancel_all_orders_error(e, side) { // both sell and buys
         this.error_count++;
-        print(this.pair, `Cancell all ${side} orders error:`, e);
+        print(this.pair, `Cancel all ${side} orders error:`, e);
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011) {
             print(this.pair, 'Unknown order -2011');
         }
@@ -176,7 +176,7 @@ class Pair {
         await Promise.all(orders.map(order => {
             return new Promise((resolve, reject) => {
                 binance.cancel(this.pair, order.orderId, (e, res, symbol) => {
-                    if (e) this.cancel_all_orders_error(e);
+                    if (e) this.cancel_all_orders_error(e, side);
                     else this.cancel_all_orders_success(res);
                     resolve();
                 });
