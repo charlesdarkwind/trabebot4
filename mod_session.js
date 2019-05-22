@@ -183,7 +183,7 @@ class Session {
                 print(pair, '!!!Re-trying sell for unassessed coin balance...');
                 await Pair.handle_place_sell();
             } else if (Pair.quantity_available_is_over_minNotional) { // todo remove
-                print(pair, Pair.stopped, Pair.busy, Pair.sell_order_id, Pair.is_handling_place_sell)
+                print(pair, `unassed: ${Pair.stopped} ${Pair.busy} ${Pair.sell_order_id} ${Pair.is_handling_place_sell}`)
             }
         }));
     }
