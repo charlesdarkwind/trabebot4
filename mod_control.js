@@ -16,7 +16,7 @@ mongoose.connection.on('error', err => console.warn(`mongoose connection error: 
 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 15, // todo change
+    concurent_count_max: 10, // todo change
     position_divider_default: 70.5,
     position_divider: 71.1,
     num_pairs: 70
