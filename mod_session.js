@@ -174,16 +174,17 @@ class Session {
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             Pair.setMinNotionalState();
+            const hasQuantity = Pair.getTotalBalance() * Pair.sell_line >= Pair.minNotional;  // todo should force sell order on Unassessed balance available instead of total?
             if (!Pair.stopped
                 && !Pair.busy
                 && !Pair.sell_order_id
-                && Pair.getTotalBalance() * Pair.sell_line >= Pair.minNotional
-                && !Pair.is_handling_place_sell
+                && hasQuantity
+                && !Pair.is_handling_place_sell // todo remove: hard fix
             ) {
                 print(pair, '!!!Re-trying sell for unassessed coin balance...');
                 await Pair.handle_place_sell();
-            } else if (Pair.quantity_available_is_over_minNotional) { // todo remove
-                print(pair, `unassed: ${Pair.busy} ${Pair.sell_order_id} ${Pair.is_handling_place_sell} ${Pair.getTotalBalance() * Pair.sell_line >= Pair.minNotional}`)
+            } else if (hasQuantity) { // todo remove
+                print(pair, `unassed: ${Pair.busy} ${Pair.sell_order_id} ${Pair.is_handling_place_sell} ${hasQuantity}`)
             }
         }));
     }
