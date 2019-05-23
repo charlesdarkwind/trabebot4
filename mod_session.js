@@ -414,8 +414,10 @@ class Session {
 
 
     async sellAll() {
+        this.parseDF();
         let delay = 0;
-        await Promise.all(this.Pairs.map(async Pair => {
+        await Promise.all(this.pairs.map(async pair => {
+            const Pair = this.Pairs[pair];
             setTimeout(async () => {
                 await Pair.tryMarketSell();
                 delay += 150;

@@ -714,7 +714,7 @@ class Pair {
                 if (this.log_level >= 2)
                     print(this.pair, 'Not enought qty.');
                 resolve();
-            } else if (this.quantity_total_is_over_minNotional) { // conditions
+            } else if (this.quantity_total_is_over_minNotional) {
 
                 if (this.log_level >= 3)
                     print(this.pair, 'Placing a sell order');
