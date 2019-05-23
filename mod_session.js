@@ -26,6 +26,7 @@ class Session {
         this.comp_name = process.env['COMPUTERNAME'];
         this.runned_once = false;
         this.PY_1_error_count = 0;  // cant fail 2 times in a row
+        this.delay = 0;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -412,16 +413,22 @@ class Session {
         await Promise.all(this.pairs.map(async pair => await this.Pairs[pair].handle_new_prices()));
     }
 
+    getDelay() {
+        return this.delay;
+    }
+
+    incDelay(ms) {
+        this.delay += ms;
+    }
 
     async sellAll() {
         this.parseDF();
-        let delay = 0;
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             setTimeout(async () => {
                 await Pair.tryMarketSell();
-                delay += 150;
-            }, delay);
+                this.incDelay(150);
+            }, this.getDelay());
         }));
     }
 }
