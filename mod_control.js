@@ -16,7 +16,7 @@ mongoose.connection.on('error', err => console.warn(`mongoose connection error: 
 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 10, // todo change
+    concurent_count_max: 15,
     position_divider_default: 70.5,
     position_divider: 71.1,
     num_pairs: 70
@@ -89,7 +89,6 @@ const start = async () => {
         await S.callDfRecalc();
         await S.initBalances();
         await S.handle_new_prices();
-        await S.handleUnassessedBalances(); // todo remove
     }, 60000 * 10);
 
     /** 2 mins
@@ -110,7 +109,7 @@ const start = async () => {
      */
     setInterval(async () => {
         await S.handleConcurentCount();
-        // await S.handleUnassessedBalances(); //todo put back
+        await S.handleUnassessedBalances();
     }, 30000);
 
     /**

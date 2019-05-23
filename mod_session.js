@@ -179,12 +179,10 @@ class Session {
                 && !Pair.busy
                 && !Pair.sell_order_id
                 && hasQuantity
-                && !Pair.is_handling_place_sell // todo remove: hard fix
+                && !Pair.is_handling_place_sell
             ) {
                 print(pair, '!!!Re-trying sell for unassessed coin balance...');
                 await Pair.handle_place_sell();
-            } else if (hasQuantity) { // todo remove
-                print(pair, `unassed: ${Pair.busy} ${Pair.sell_order_id} ${Pair.is_handling_place_sell} ${hasQuantity}`)
             }
         }));
     }
@@ -342,7 +340,7 @@ class Session {
             } else if (this.comp_name == 'JAS-VPS' && this.comp_name == 'JAS-VPS') {
                 ls = spawn('python', ['mod_control.py', '--server'], {cwd: 'C:\\Users\\JAS\\Documents\\backtester_4\\sample'});
             } else {
-                // todo: pair must be listed in [pairstotest] from the python mod_data script
+                // pair must be listed in [pairstotest] from the python mod_data script
                 ls = spawn('python', ['mod_control.py', '--server'], {cwd: '/home/jasmin/backtester4'});
             }
 
