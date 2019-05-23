@@ -700,7 +700,7 @@ class Pair {
         } else if (this.log_level >= 2) {
             print(this.pair, `Cant place sell: Valid ${isValid} queue ${is_in_queue} minNot ${this.quantity_total_is_over_minNotional}`);
         }
-        this.is_handling_place_sell = falseis_handling_place_sell = false;
+        this.is_handling_place_sell = is_handling_place_sell = false;
     }
 
     async PARTIALLY_FILLED_LIMIT_BUY(data) {
