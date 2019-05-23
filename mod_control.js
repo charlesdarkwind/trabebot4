@@ -16,9 +16,9 @@ mongoose.connection.on('error', err => console.warn(`mongoose connection error: 
 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 15,
+    concurent_count_max: 20,
     position_divider_default: 70.5,
-    position_divider: 71.1,
+    position_divider: 70.5,
     num_pairs: 70
 };
 
@@ -105,7 +105,7 @@ const start = async () => {
     /** 30 sec
      *  INTERVAL:
      *      - Check concurent count, stop all orders if busted. (Its already being checked before every order placement)
-     *      - Check for pairs with balance unassed
+     *      - Check for pairs with unassessed coin balance to sell
      */
     setInterval(async () => {
         await S.handleConcurentCount();

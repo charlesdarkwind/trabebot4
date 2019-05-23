@@ -703,6 +703,35 @@ class Pair {
         this.is_handling_place_sell = false;
     }
 
+    async tryMarketSell() {
+        return new Promise((resolve, reject) => {
+
+            this.setMinNotionalState();
+            const qty = binance.roundStep(this.balance_available, this.stepSize);
+
+            // Check lot_size (has MinQty)
+            if (qty < this.minQty) {
+                if (this.log_level >= 2)
+                    print(this.pair, 'Not enought qty.');
+                resolve();
+            } else if (this.quantity_total_is_over_minNotional) { // conditions
+
+                if (this.log_level >= 3)
+                    print(this.pair, 'Placing a sell order');
+
+                try {
+                    binance.marketSell(this.pair, qty);
+                } catch (e) {
+                    print(this.pair, 'Error during market sell', e);
+                }
+
+            } else {
+                print(this.pair, 'Could not place order for some reason.');
+            }
+            resolve();
+        });
+    }
+
     async PARTIALLY_FILLED_LIMIT_BUY(data) {
         await this.S.initBalances();
         this.isConcurrent = true;

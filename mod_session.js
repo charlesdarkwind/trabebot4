@@ -6,8 +6,6 @@ const {print} = require('./mod_helpers');
 const {spawn} = require('child_process');
 const Pair = require('./mod_pair');
 const util = require('util');
-// const readFile = util.promisify(fs.readFile);
-// const writeFile = util.promisify(fs.writeFile);
 const getExchangeInfos = util.promisify(binance.exchangeInfo);
 const getBalances = util.promisify(binance.balance);
 
@@ -366,11 +364,8 @@ class Session {
         });
     }
 
-    getPairs() {
-        return this.pairs;
-    }
 
-    balanceUpdate(data, S) { // todo will spam a lot in partial fills
+    balanceUpdate(data, S) {
         setImmediate(() => {
             for (const obj of data.B) {
                 const {a: asset, f: available, l: onOrder} = obj;
@@ -409,8 +404,23 @@ class Session {
         }
     }
 
+    /** Check if prices of current orders are deviating and place new ones after cancelin old ones.
+     *
+     * @return {Promise<void>}
+     */
     async handle_new_prices() {
         await Promise.all(this.pairs.map(async pair => await this.Pairs[pair].handle_new_prices()));
+    }
+
+
+    async sellAll() {
+        let delay = 0;
+        await Promise.all(this.Pairs.map(async Pair => {
+            setTimeout(async () => {
+                await Pair.tryMarketSell();
+                delay += 150;
+            }, delay);
+        }));
     }
 }
 
