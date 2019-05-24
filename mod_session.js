@@ -358,8 +358,7 @@ class Session {
                 if (this.log_level >= 3 || code !== 0)
                     print('PY_2', `Python 2 process exited with code ${code}`);
                 if (code !== 0) reject();
-                // Parse DFs
-                this.parseDF();
+                this.parseDF(); // Parse DFs
                 resolve();
             });
         });
@@ -421,13 +420,17 @@ class Session {
         this.delay += ms;
     }
 
+    /** Sell all balances using market orders, only called by running the mod_sell_all script
+     *
+     * @return {Promise<void>}
+     */
     async sellAll() {
         this.parseDF();
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
+            this.incDelay(150);
             setTimeout(async () => {
                 await Pair.tryMarketSell();
-                this.incDelay(150);
             }, this.getDelay());
         }));
     }

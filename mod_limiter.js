@@ -22,7 +22,7 @@ class Limiter {
         this.queue.push(obj);
     }
 
-    getFistInQueue() {
+    getFirstInQueue() {
         return this.queue.shift();
     }
 
@@ -40,7 +40,7 @@ class Limiter {
     runQueue() {
         if (!this.getQueue().length) return;
         for (let i = 0; i < this.getTokenCount(); i++) {
-            const obj = this.getFistInQueue();
+            const obj = this.getFirstInQueue();
             obj.Pair[obj.fn]();
             this.setTokenCount(-1);
         }

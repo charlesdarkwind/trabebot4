@@ -303,7 +303,7 @@ class Pair {
             print(this.pair, `CANCELED BUY, will retry buy...`);
 
         // Can place again?
-        if (!this.S.isConcurrentCountBusted() && !this.stopped)
+        if (!this.S.isConcurrentCountBusted() && !this.stopped && !this.order_id)
             await this.handle_place_buy();
     }
 
