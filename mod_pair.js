@@ -576,30 +576,26 @@ class Pair {
         const isValid = this.validate();
         // this.setMinNotionalState();
         // const hasMinNot = this.position_size_is_over_minNotional; // todo should fetch balance before?
-        const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
 
-        if (isValid && !is_in_queue && !this.S.isConcurrentCountBusted()/* && hasMinNot*/) { // conditions
+        if (isValid && !this.S.isConcurrentCountBusted()/* && hasMinNot*/) { // conditions
             this.busy = true;
 
             // Cancel other buy
             if (this.order_id)
                 await this.cancel_buy();
 
-            if (this.is_handling_place_buy) {
-                if (this.log_level >= 2)
-                    print(this.pair, 'Pair is already trying to handle place buy in parallel 2, returning...');
-                this.is_handling_place_buy = false;
-                return;
-            }
-
             if (this.log_level >= 3)
                 print(this.pair, 'Placing a buy order in queue...');
 
             // Place buy order in queue
-            await this.limiter.limit('place_buy_order', this);
+            const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
+            if (!is_in_queue)
+                await this.limiter.limit('place_buy_order', this);
+            else
+                print(this.pair, 'is already in queue');
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place buy queue: Valid ${isValid} queue ${is_in_queue}`);
+            print(this.pair, `Cant place buy queue: Valid ${isValid}`);
         }
         this.is_handling_place_buy = false;
     }
@@ -684,10 +680,8 @@ class Pair {
         this.sell_try_count = 0;
 
         const isValid = this.validate();
-        const is_in_queue = this.limiter.getInfo(Pair, 'place_sell_order') == true;
         this.setMinNotionalState();
-
-        if (isValid && !is_in_queue && this.quantity_total_is_over_minNotional) { // conditions
+        if (isValid && this.quantity_total_is_over_minNotional) { // conditions
             this.busy = true;
 
             // Cancel other sell
@@ -698,21 +692,18 @@ class Pair {
                 await this.cancel_sell();
             }
 
-            if (this.is_handling_place_sell) {
-                if (this.log_level >= 2)
-                    print(this.pair, 'Pair is already trying to handle place sell in parallel 2, returning...');
-                this.is_handling_place_sell = false;
-                return;
-            }
-
             if (this.log_level >= 3)
                 print(this.pair, 'Placing a sell order in queue...');
 
             // Place sell order in queue
-            await this.limiter.limit('place_sell_order', this);
+            const is_in_queue = this.limiter.getInfo(Pair, 'place_sell_order') == true;
+            if (!is_in_queue)
+                await this.limiter.limit('place_sell_order', this);
+            else
+                print(this.pair, 'is already in queue');
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place sell: Valid ${isValid} queue ${is_in_queue} minNot ${this.quantity_total_is_over_minNotional}`);
+            print(this.pair, `Cant place sell: Valid ${isValid} minNot ${this.quantity_total_is_over_minNotional}`);
         }
         this.is_handling_place_sell = false;
     }

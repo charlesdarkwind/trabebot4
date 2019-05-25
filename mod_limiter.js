@@ -34,7 +34,7 @@ class Limiter {
      * @return {object}
      */
     getInfo(Pair, fn) {
-        return this.getQueue().find(obj => obj.Pair == Pair && obj.fn == fn);
+        return this.getQueue().find(obj => obj.Pair.pair == Pair.pair && obj.fn == fn);
     }
 
     runQueue() {
