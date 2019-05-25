@@ -303,7 +303,7 @@ class Pair {
             print(this.pair, `CANCELED BUY, will retry buy...`);
 
         // Can place again?
-        if (!this.S.isConcurrentCountBusted() && !this.stopped && !this.order_id)
+        if (!this.order_id && !this.S.isConcurrentCountBusted() && !this.stopped)
             await this.handle_place_buy();
     }
 
@@ -585,6 +585,13 @@ class Pair {
             if (this.order_id)
                 await this.cancel_buy();
 
+            if (this.is_handling_place_buy) {
+                if (this.log_level >= 2)
+                    print(this.pair, 'Pair is already trying to handle place buy in parallel 2, returning...');
+                this.is_handling_place_buy = false;
+                return;
+            }
+
             if (this.log_level >= 3)
                 print(this.pair, 'Placing a buy order in queue...');
 
@@ -689,6 +696,13 @@ class Pair {
                     print(this.pair, 'Cancelling old sell order...');
 
                 await this.cancel_sell();
+            }
+
+            if (this.is_handling_place_sell) {
+                if (this.log_level >= 2)
+                    print(this.pair, 'Pair is already trying to handle place sell in parallel 2, returning...');
+                this.is_handling_place_sell = false;
+                return;
             }
 
             if (this.log_level >= 3)
