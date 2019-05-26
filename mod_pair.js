@@ -91,9 +91,9 @@ class Pair {
      * If the state is deemed incorrect, stop pair. If pair is already stopped,
      * check if it can be restarted.
      *
-     * @return {boolean}
+     * @return {boolean} - False if invalid else true
      */
-    validate() {
+    validate(type='buy') {
         if (!this.stopped) {
             if (this.buy_count > 6 || this.error_count > 6) {
 
@@ -105,7 +105,7 @@ class Pair {
             }
         } else if (this.stopped && Date.now() > this.stopped_until) {
             this.restart();
-        } else if (this.stopped && Date.now() < this.stopped_until) {
+        } else if (this.stopped && Date.now() < this.stopped_until && type != 'sell') {
             return false;
         }
         return true;
@@ -485,7 +485,7 @@ class Pair {
     }
 
     async place_sell_order() {
-        if (this.validate() !== true) return;
+        if (!this.validate('sell')) return;
         this.busy = true;
 
         // Check balances again
