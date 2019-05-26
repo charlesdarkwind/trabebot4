@@ -346,7 +346,8 @@ class Pair {
      * @return {Promise<void>}
      */
     async place_buy_order() {
-        if (this.validate() !== true) return;
+        if (this.validate() !== true || this.is_placing_buy_order) return;
+        this.is_placing_buy_order = true;
         this.busy = true;
 
         // Check balances again
@@ -364,6 +365,7 @@ class Pair {
             if (this.log_level >= 2)
                 print(this.pair, `Pos size (${positionSize}) of buy would be under minQty (LOT_SIZE), not buying.`);
             this.busy = false;
+            this.is_placing_buy_order = false;
             return;
         }
 
@@ -373,6 +375,7 @@ class Pair {
             if (this.log_level >= 2)
                 print(this.pair, `Pos size of buy would be under minNot, not buying. ${this.getTotalBalance()}`);
             this.busy = false;
+            this.is_placing_buy_order = false;
             return;
         }
 
@@ -386,6 +389,7 @@ class Pair {
 
             this.stopped_for_concurrent = true;  // set here and at session level only
             this.busy = false;
+            this.is_placing_buy_order = false;
             return;
         }
 
@@ -408,6 +412,7 @@ class Pair {
         this.order_id = data.i;
         this.buy_placed = true;
         this.busy = false;
+        this.is_placing_buy_order = false;
 
         if (this.log_level >= 2)
             print(this.pair, `NEW BUY at price: ${price.toFixed(8)}`);
