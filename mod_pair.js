@@ -797,10 +797,6 @@ class Pair {
                     print(this.pair, 'Checking div but is busy, trying again in 5 secs...');
 
                 setTimeout(async () => {
-                    if (this.log_level >= 3 && this.busy) { // todo remove
-                        print(this.pair, 'Pair still busy after 5s, not normal, removing busy...');
-                        this.busy = false; // if still busy after 5s then something wierd happened, remove busy todo keep the = false?
-                    }
                     await this.handle_new_prices();
                 }, 5000);
 

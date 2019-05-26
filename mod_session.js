@@ -173,7 +173,7 @@ class Session {
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             Pair.setMinNotionalState();
-            const hasQuantity = Pair.getTotalBalance() * Pair.sell_line >= Pair.minNotional;  // todo should force sell order on Unassessed balance available instead of total?
+            const hasQuantity = Pair.getTotalBalance() * Pair.sell_line >= Pair.minNotional * 1.1;  // todo should force sell order on Unassessed balance available instead of total?
             if (!Pair.stopped
                 && !Pair.busy
                 && !Pair.sell_order_id
