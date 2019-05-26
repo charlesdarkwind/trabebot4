@@ -638,6 +638,14 @@ class Pair {
             this.handle_place_buy();
     }
 
+    async FILLED_MARKET_SELL(data) {
+        await FILLED_LIMIT_SELL(data);
+    }
+
+    async PARTIALLY_FILLED_MARKET_SELL(data) {
+        await PARTIALLY_FILLED_LIMIT_SELL(data);
+    }
+
     /////////////////////////////////////////////////////////
     ///////////////////// BUY FILL //////////////////////////
     /////////////////////////////////////////////////////////
