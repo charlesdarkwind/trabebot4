@@ -326,6 +326,7 @@ class Pair {
             print(this.pair, 'Error when placing Limit Buy, retrying...', e);
         }
         this.busy = false;
+        this.is_placing_buy_order = false;
 
         // Try again
         if (!this.S.isConcurrentCountBusted() && !this.stopped)
