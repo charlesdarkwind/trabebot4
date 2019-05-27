@@ -107,3 +107,18 @@ Si probleme 'main' avec pip:
 
     python -m pip uninstall pip setuptools wheel
     sudo apt-get --reinstall install python-setuptools python-wheel python-pip
+
+
+    { symbol: 'ZENBTC',
+      orderId: 18557694,
+      clientOrderId: 'L8UTwhteKvpKgfQyNHkXxa',
+      transactTime: 1558907995076,
+      price: '0.00125600',
+      origQty: '2.21700000',
+      executedQty: '0.00000000',
+      cummulativeQuoteQty: '0.00000000',
+      status: 'NEW',
+      timeInForce: 'GTC',
+      type: 'LIMIT',
+      side: 'BUY',
+      fills: [] }

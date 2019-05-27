@@ -2,8 +2,13 @@ require('dotenv').config({path: 'variables.env'});
 const fs = require('fs');
 const mongoose = require('mongoose');
 
-process.on('uncaughtException', err => console.log(err));
-process.on('unhandledRejection', (reason, p) => console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason));
+process.on('uncaughtException', err => {
+    console.log(err);
+});
+
+process.on('unhandledRejection', (reason, p) => {
+    console.warn('Unhandled Rejection at: Promise', p, 'reason:', reason);
+});
 
 mongoose.set('useFindAndModify', false);
 mongoose.connect(process.env.DATABASE, {
@@ -16,9 +21,9 @@ mongoose.connection.on('error', err => console.warn(`mongoose connection error: 
 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 20,
+    concurent_count_max: 14,
     position_divider_default: 70.5,
-    position_divider: 1000,
+    position_divider: 140,
     num_pairs: 70
 };
 
@@ -109,8 +114,15 @@ const start = async () => {
      */
     setInterval(async () => {
         await S.handleConcurentCount();
-        await S.handleUnassessedBalances();
+        // await S.handleUnassessedBalances();
     }, 30000);
+
+    /** 1 secs
+     *
+     */
+    setInterval(async () => {
+        await S.handleBalanceChanges();
+    }, 1000);
 
     /**
      * Refill token bucket

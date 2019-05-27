@@ -83,7 +83,7 @@ class Pair {
     }
 
     setFilledPercent() {
-        this.percent_filled = Math.round(this.getTotalBalance() * this.buy_line / this.positionSizeInBTC * 100);
+        this.percent_filled = Math.round(this.getTotalBalance() / this.position_size * 100);
     }
 
     /**
@@ -93,7 +93,7 @@ class Pair {
      *
      * @return {boolean} - False if invalid else true
      */
-    validate(type='buy') {
+    validate(type = 'buy') {
         if (!this.stopped) {
             if (this.buy_count > 6 || this.error_count > 6) {
 
@@ -259,8 +259,17 @@ class Pair {
         this.busy = false;  // todo good?
     }
 
-    cancel_buy_success(res) {
-        return;
+    async cancel_buy_success(res) {
+        delete this.order_id;
+        this.buy_placed = false;
+        if (!this.cancelling_all_orders) this.busy = false;
+
+        if (this.log_level >= 2)
+            print(this.pair, `CANCELED BUY, will retry buy...`);
+
+        // Can place again?
+        if (!this.order_id && !this.S.isConcurrentCountBusted() && !this.stopped)
+            await this.handle_place_buy();
     }
 
     /**
@@ -295,16 +304,16 @@ class Pair {
     };
 
     async CANCELED_LIMIT_BUY() {
-        delete this.order_id;
-        this.buy_placed = false;
-        if (!this.cancelling_all_orders) this.busy = false;
-
-        if (this.log_level >= 2)
-            print(this.pair, `CANCELED BUY, will retry buy...`);
-
-        // Can place again?
-        if (!this.order_id && !this.S.isConcurrentCountBusted() && !this.stopped)
-            await this.handle_place_buy();
+        // delete this.order_id;
+        // this.buy_placed = false;
+        // if (!this.cancelling_all_orders) this.busy = false;
+        //
+        // if (this.log_level >= 2)
+        //     print(this.pair, `CANCELED BUY, will retry buy...`);
+        //
+        // // Can place again?
+        // if (!this.order_id && !this.S.isConcurrentCountBusted() && !this.stopped)
+        //     await this.handle_place_buy();
     }
 
     /////////////////////////////////////////////////////////
@@ -334,7 +343,17 @@ class Pair {
     }
 
     buy_success(res) {
-        return;
+        this.buy_count++;
+        this.order_id = res.orderId;
+        this.last_buy_line = this.buy_line;
+        this.buy_placed = true;
+        this.busy = false;
+        this.is_placing_buy_order = false;
+
+        if (this.log_level >= 2)
+            print(this.pair, `NEW BUY at price: ${res.price}`);
+
+        this.is_placing_buy_order = false;
     }
 
     /** BUY
@@ -405,18 +424,17 @@ class Pair {
     }
 
     NEW_LIMIT_BUY(data) {
-        this.buy_count++;
-        const price = parseFloat(data.p);
-        const qty = parseFloat(data.q);
-        this.last_buy_line = this.buy_line;
-        this.NEW_LIMIT_BUY_RECEIVED = true;
-        this.order_id = data.i;
-        this.buy_placed = true;
-        this.busy = false;
-        this.is_placing_buy_order = false;
+        // this.buy_count++;
+        // buy_success(data.p)
+        // const price = parseFloat(data.p);
+        // this.last_buy_line = this.buy_line;
+        // this.order_id = data.i;
+        // this.buy_placed = true;
+        // this.busy = false;
+        // this.is_placing_buy_order = false;
 
-        if (this.log_level >= 2)
-            print(this.pair, `NEW BUY at price: ${price.toFixed(8)}`);
+        // if (this.log_level >= 2)
+        //     print(this.pair, `NEW BUY at price: ${price.toFixed(8)}`);
     }
 
     /////////////////////////////////////////////////////////
@@ -430,26 +448,7 @@ class Pair {
         this.busy = false;
     }
 
-    cancel_sell_success(res) {
-        return;
-    }
-
-    async cancel_sell() {
-        this.busy = true;
-
-        if (this.log_level >= 3)
-            print(this.pair, 'Canceling sell...');
-
-        await new Promise((resolve, reject) => {
-            binance.cancel(this.pair, this.sell_order_id, (e, res, symbol) => {
-                if (e) this.cancel_sell_error(e);
-                else this.cancel_sell_success(res);
-                resolve();
-            });
-        });
-    };
-
-    async CANCELED_LIMIT_SELL() {
+    async cancel_sell_success(res) {
         delete this.sell_order_id;
         this.sell_placed = false;
         if (!this.cancelling_all_orders) this.busy = false;
@@ -459,6 +458,33 @@ class Pair {
 
         // Can place again ?
         await this.handle_place_sell();
+    }
+
+    async cancel_sell() {
+        this.busy = true;
+
+        if (this.log_level >= 3)
+            print(this.pair, 'Canceling sell...');
+
+        await new Promise((resolve, reject) => {
+            binance.cancel(this.pair, this.sell_order_id, async (e, res, symbol) => {
+                if (e) this.cancel_sell_error(e);
+                else await this.cancel_sell_success(res);
+                resolve();
+            });
+        });
+    };
+
+    async CANCELED_LIMIT_SELL() {
+        // delete this.sell_order_id;
+        // this.sell_placed = false;
+        // if (!this.cancelling_all_orders) this.busy = false;
+        //
+        // if (this.log_level >= 2)
+        //     print(this.pair, `CANCELED SELL, will retry sell...`);
+        //
+        // // Can place again ?
+        // await this.handle_place_sell();
     }
 
     /////////////////////////////////////////////////////////
@@ -481,7 +507,13 @@ class Pair {
     }
 
     sell_success(res) {
-        return;
+        this.last_sell_line = res.price; // use price reported instead of sell_line so manual orders can be re-placed
+        this.sell_order_id = res.orderId;
+        this.sell_placed = true;
+        this.busy = false;
+
+        if (this.log_level >= 2)
+            print(this.pair, `NEW SELL at price: ${res.price}`);
     }
 
     async place_sell_order() {
@@ -515,16 +547,15 @@ class Pair {
     }
 
     NEW_LIMIT_SELL(data) {
-        const price = parseFloat(data.p);
-        const qty = parseFloat(data.q);
-        this.NEW_LIMIT_SELL_RECEIVED = true;
-        this.last_sell_line = price; // use price reported instead of sell_line so manual orders can be re-placed
-        this.sell_order_id = data.i;
-        this.sell_placed = true;
-        this.busy = false;
-
-        if (this.log_level >= 2)
-            print(this.pair, `NEW SELL at price: ${price.toFixed(8)}`);
+        // const price = parseFloat(data.p);
+        // const qty = parseFloat(data.q);
+        // this.last_sell_line = price; // use price reported instead of sell_line so manual orders can be re-placed
+        // this.sell_order_id = data.i;
+        // this.sell_placed = true;
+        // this.busy = false;
+        //
+        // if (this.log_level >= 2)
+        //     print(this.pair, `NEW SELL at price: ${price.toFixed(8)}`);
     }
 
     /////////////////////////////////////////////////////////
@@ -595,9 +626,9 @@ class Pair {
 
             // Place buy order in queue
             const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
-            if (!is_in_queue)
+            if (!is_in_queue) {
                 await this.limiter.limit('place_buy_order', this);
-            else
+            } else
                 print(this.pair, 'is already in queue');
 
         } else if (this.log_level >= 2) {
@@ -606,45 +637,77 @@ class Pair {
         this.is_handling_place_buy = false;
     }
 
-    async PARTIALLY_FILLED_LIMIT_SELL(data) {
-        await this.S.initBalances();
+    handleLowerBalance() {
         this.isConcurrent = false;
-        this.sell_order_id = data.i;
-        this.last_executed_price_sell = parseFloat(data.L); // only for logging
-        this.setFilledPercent();
-        const sellFilledPct = Math.round(this.getTotalBalance() * this.sell_line / this.positionSizeInBTC * 100);
-        const lastQty = data.Y;
-        const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
+        const totalBalance = this.getTotalBalance();
+        const sellFilledPct = Math.round(totalBalance * this.sell_line / this.positionSizeInBTC * 100);
+        const profitPct = (this.sell_line / this.last_buy_line_fill - 1) * 100;
+        this.totalBalanceLastKnown = totalBalance; // last time processed
 
-        print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
+        // Filled ?
+        if (totalBalance * this.last_buy_line < this.minNotional) {
+            print(this.pair, `Sell is filled (${sellFilledPct}%) profit: ${profitPct.toFixed(2)}%`);
+            delete this.sell_order_id;
+            this.sell_placed = false;
+        } else {
+            print(this.pair, `Sell is partially filled (${sellFilledPct}%) profit: ${profitPct.toFixed(2)}%`);
+        }
 
         if (!this.is_handling_place_buy)
             this.handle_place_buy();
     }
 
-    async FILLED_LIMIT_SELL(data) {
-        await this.S.initBalances();
-        this.isConcurrent = false;
-        this.sell_placed = false;
-        delete this.sell_order_id;
-        this.last_executed_price_sell = parseFloat(data.L); // only for logging
-        this.percent_filled = 0;
-        const lastQty = data.Y;
-        const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
-
-        print(this.pair, `FILLED SELL (0%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
-
-        if (!this.is_handling_place_buy)
-            this.handle_place_buy();
+    PARTIALLY_FILLED_LIMIT_SELL(data) {
+        print(this.pair, `PARTIALL FILLED SELL`);
+    }
+    FILLED_LIMIT_SELL(data) {
+        print(this.pair, `FILLED SELL`);
+    }
+    FILLED_MARKET_SELL(data) {
+        print(this.pair, `FILLED SELL market`);
+    }
+    PARTIALLY_FILLED_MARKET_SELL(data) {
+        print(this.pair, `PARTIALL FILLED SELL market`);
     }
 
-    async FILLED_MARKET_SELL(data) {
-        await FILLED_LIMIT_SELL(data);
-    }
+    // async PARTIALLY_FILLED_LIMIT_SELL(data) {
+    //     // await this.S.initBalances();
+    //     // this.isConcurrent = false;
+    //     // this.sell_order_id = data.i;
+    //     this.last_executed_price_sell = parseFloat(data.L); // only for logging
+    //     // this.setFilledPercent();
+    //     // const sellFilledPct = Math.round(this.getTotalBalance() * this.sell_line / this.positionSizeInBTC * 100);
+    //     const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
+    //
+    //     print(this.pair, `PARTIALL FILLED SELL (${sellFilledPct}%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
+    //
+    //     // if (!this.is_handling_place_buy)
+    //     //     this.handle_place_buy();
+    // }
 
-    async PARTIALLY_FILLED_MARKET_SELL(data) {
-        await PARTIALLY_FILLED_LIMIT_SELL(data);
-    }
+    // async FILLED_LIMIT_SELL(data) {
+    //     await this.S.initBalances();
+    //     this.isConcurrent = false;
+    //     this.sell_placed = false;
+    //     delete this.sell_order_id;
+    //     this.last_executed_price_sell = parseFloat(data.L); // only for logging
+    //     this.percent_filled = 0;
+    //     const lastQty = data.Y;
+    //     const profitPercent = (this.last_executed_price_sell / this.last_executed_price_buy - 1) * 100;
+    //
+    //     print(this.pair, `FILLED SELL (0%) at price: ${this.last_executed_price_sell.toFixed(8)}, profit: ${profitPercent.toFixed(2)}%`);
+    //
+    //     if (!this.is_handling_place_buy)
+    //         this.handle_place_buy();
+    // }
+
+    // async FILLED_MARKET_SELL(data) {
+    //     await FILLED_LIMIT_SELL(data);
+    // }
+    //
+    // async PARTIALLY_FILLED_MARKET_SELL(data) {
+    //     await PARTIALLY_FILLED_LIMIT_SELL(data);
+    // }
 
     /////////////////////////////////////////////////////////
     ///////////////////// BUY FILL //////////////////////////
@@ -751,33 +814,62 @@ class Pair {
         });
     }
 
-    async PARTIALLY_FILLED_LIMIT_BUY(data) {
-        await this.S.initBalances();
+    handleHigherBalance() {
         this.isConcurrent = true;
-        this.order_id = data.i;
         this.buy_placed = true;
-        this.last_executed_price_buy = parseFloat(data.L); // only for logging
-        this.setFilledPercent();
+        const pct_filled = Math.round(this.getTotalBalance() / this.position_size * 100);
+        this.totalBalanceLastKnown = this.getTotalBalance(); // last time processed
+        this.last_buy_line_fill = this.last_buy_line;
 
-        print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy}`);
-
-        if (!this.is_handling_place_sell)
-            this.handle_place_sell();
-    }
-
-    async FILLED_LIMIT_BUY(data) {
-        await this.S.initBalances();
-        this.isConcurrent = true;
-        this.buy_placed = false;
-        delete this.order_id;
-        this.last_executed_price_buy = parseFloat(data.L); // only for logging
-        this.percent_filled = 100;
-
-        print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy.toFixed(8)}`);
+        // Filled ?
+        if (this.getTotalBalance() >= this.position_size) {
+            print(this.pair, `FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line}`);
+            delete this.order_id;
+            this.buy_placed = false;
+        } else {
+            print(this.pair, `PARTIALL FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line}`);
+        }
 
         if (!this.is_handling_place_sell)
             this.handle_place_sell();
     }
+
+    PARTIALLY_FILLED_LIMIT_BUY(data) {
+        print(this.pair, `PARTIALL FILLED BUY`);
+    }
+    FILLED_LIMIT_BUY(data) {
+        print(this.pair, `FILLED BUY`);
+    }
+
+    // async PARTIALLY_FILLED_LIMIT_BUY(data) {
+    //     await this.S.initBalances();
+    //     this.isConcurrent = true;
+    //     this.order_id = data.i;
+    //     this.buy_placed = true;
+    //     this.last_executed_price_buy = parseFloat(data.L); // only for logging
+    //     this.setFilledPercent();
+    //
+    //     // this.last_buy_line_fill = this.buy_line
+    //
+    //     print(this.pair, `PARTIALL FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy}`);
+    //
+    //     if (!this.is_handling_place_sell)
+    //         this.handle_place_sell();
+    // }
+    //
+    // async FILLED_LIMIT_BUY(data) {
+    //     await this.S.initBalances();
+    //     this.isConcurrent = true;
+    //     this.buy_placed = false;
+    //     delete this.order_id;
+    //     this.last_executed_price_buy = parseFloat(data.L); // only for logging
+    //     this.percent_filled = 100;
+    //
+    //     print(this.pair, `FILLED BUY (${this.percent_filled}%) at price: ${this.last_executed_price_buy.toFixed(8)}`);
+    //
+    //     if (!this.is_handling_place_sell)
+    //         this.handle_place_sell();
+    // }
 
     /////////////////////////////////////////////////////////
     //////////////// CANCEL FOR NEW PRICES //////////////////

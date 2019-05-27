@@ -163,6 +163,22 @@ class Session {
         }));
     }
 
+    async handleBalanceChanges() {
+        await this.initBalances();
+        this.pairs.map(pair => {
+            const Pair = this.Pairs[pair];
+            const totalBalance = Pair.getTotalBalance();
+            const balanceIsUp = Pair.balance_available * Pair.sell_line >= Pair.minNotional;
+            const balanceIsDown = (Pair.totalBalanceLastKnown - totalBalance) * Pair.buy_line >= Pair.minNotional;
+
+            if (!Pair.stopped && !Pair.busy && balanceIsUp) {
+                Pair.handleHigherBalance();
+            } else if (!Pair.stopped && !Pair.busy && balanceIsDown) {
+                Pair.handleLowerBalance();
+            }
+        });
+    }
+
     /** Place sell order for pairs that have unassessed balances.
      *
      * Unassessed coin balances to sell are hard to avoid, either this or constant place_buy_order spam...
@@ -170,10 +186,11 @@ class Session {
      * @return {Promise<void>}
      */
     async handleUnassessedBalances() {
+        await this.initBalances();
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             Pair.setMinNotionalState();
-            const hasQuantity = Pair.getTotalBalance() * Pair.sell_line >= Pair.minNotional * 1.1;  // todo should force sell order on Unassessed balance available instead of total?
+            const hasQuantity = Pair.balance_available * Pair.sell_line >= Pair.minNotional * 1.1;
             if (!Pair.stopped
                 && !Pair.busy
                 && !Pair.sell_order_id
@@ -268,7 +285,7 @@ class Session {
             });
 
             ls.stderr.on('data', data => {
-                if (typeof data == 'object') print(Object.keys(data));
+                if (typeof data == 'object') print('PY_1', Object.keys(data)); // means corrupted klines
                 else print(typeof data);
                 print('PY_1', 'Err during python 1 klines fetching (REST)', data.toString());
             });
@@ -400,6 +417,7 @@ class Session {
     async placeFirstBuys() {
         for (let pair in this.Pairs) {
             const Pair = this.Pairs[pair];
+            Pair.totalBalanceLastKnown = Pair.getTotalBalance();
             await this.limiter.limit('place_buy_order', Pair);
         }
     }
