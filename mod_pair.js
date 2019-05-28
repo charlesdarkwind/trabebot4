@@ -119,13 +119,17 @@ class Pair {
      *
      * @return {string} position size string
      */
+
     setPositionSize() {
         const totalBTC = this.S.balance_btc_available + this.S.balance_btc_in_order;
+        // Position size max in BTC (capital divided by number of coins to trade)
         this.positionSizeInBTC = totalBTC / this.S.options.position_divider;
-        this.positionSizeRawInCoin = (this.positionSizeInBTC - this.getTotalBalance() * this.buy_line) / this.buy_line;
-        this.positionsSizeMax = binance.roundStep(this.positionSizeRawInCoin, this.stepSize); // Used to print out fill percentage
+        // Position size max in COIN
+        this.positionSizeRawInCoin = this.positionSizeInBTC / this.buy_line;
+        // Position size max in COIN rounded, used to print out fill percentage
+        this.positionsSizeMax = binance.roundStep(this.positionSizeRawInCoin, this.stepSize);
+        // Position size max in COIN minus already bought and rounded
         let positionSize = binance.roundStep(this.positionSizeRawInCoin - this.getTotalBalance(), this.stepSize);
-
         // Set the float
         this.position_size = parseFloat(positionSize);
         // Return the string
