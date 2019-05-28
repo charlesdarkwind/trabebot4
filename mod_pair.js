@@ -123,6 +123,7 @@ class Pair {
         const totalBTC = this.S.balance_btc_available + this.S.balance_btc_in_order;
         this.positionSizeInBTC = totalBTC / this.S.options.position_divider;
         this.positionSizeRawInCoin = (this.positionSizeInBTC - this.getTotalBalance() * this.buy_line) / this.buy_line;
+        this.positionsSizeMax = binance.roundStep(this.positionSizeRawInCoin, this.stepSize); // Used to print out fill percentage
         let positionSize = binance.roundStep(this.positionSizeRawInCoin - this.getTotalBalance(), this.stepSize);
 
         // Set the float
@@ -640,17 +641,17 @@ class Pair {
     handleLowerBalance() {
         this.isConcurrent = false;
         const totalBalance = this.getTotalBalance();
-        const sellFilledPct = Math.round(totalBalance * this.sell_line / this.positionSizeInBTC * 100);
+        const pct_filled = Math.round(totalBalance / this.positionsSizeMax * 100);
         const profitPct = (this.sell_line / this.last_buy_line_fill - 1) * 100;
         this.totalBalanceLastKnown = totalBalance; // last time processed
 
         // Filled ?
         if (totalBalance * this.last_buy_line < this.minNotional) {
-            print(this.pair, `Sell is filled (${sellFilledPct}%) profit: ${profitPct.toFixed(2)}%`);
+            print(this.pair, `Sell is filled (${pct_filled}%) profit: ${profitPct.toFixed(2)}%`);
             delete this.sell_order_id;
             this.sell_placed = false;
         } else {
-            print(this.pair, `Sell is partially filled (${sellFilledPct}%) profit: ${profitPct.toFixed(2)}%`);
+            print(this.pair, `Sell is partially filled (${pct_filled}%) profit: ${profitPct.toFixed(2)}%`);
         }
 
         if (!this.is_handling_place_buy)
@@ -817,12 +818,13 @@ class Pair {
     handleHigherBalance() {
         this.isConcurrent = true;
         this.buy_placed = true;
-        const pct_filled = Math.round(this.getTotalBalance() / this.position_size * 100);
-        this.totalBalanceLastKnown = this.getTotalBalance(); // last time processed
+        const totalBalance = this.getTotalBalance();
+        const pct_filled = Math.round(totalBalance / this.positionsSizeMax * 100);
+        this.totalBalanceLastKnown = totalBalance; // last time processed
         this.last_buy_line_fill = this.last_buy_line;
 
         // Filled ?
-        if (this.getTotalBalance() >= this.position_size) {
+        if (totalBalance >= this.position_size) {
             print(this.pair, `FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line}`);
             delete this.order_id;
             this.buy_placed = false;
