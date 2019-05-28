@@ -658,16 +658,16 @@ class Pair {
     }
 
     PARTIALLY_FILLED_LIMIT_SELL(data) {
-        print(this.pair, `PARTIALL FILLED SELL`);
+        print(this.pair, `WS: PARTIALL FILLED SELL`);
     }
     FILLED_LIMIT_SELL(data) {
-        print(this.pair, `FILLED SELL`);
+        print(this.pair, `WS: FILLED SELL`);
     }
     FILLED_MARKET_SELL(data) {
-        print(this.pair, `FILLED SELL market`);
+        print(this.pair, `WS: FILLED SELL market`);
     }
     PARTIALLY_FILLED_MARKET_SELL(data) {
-        print(this.pair, `PARTIALL FILLED SELL market`);
+        print(this.pair, `WS: PARTIALL FILLED SELL market`);
     }
 
     // async PARTIALLY_FILLED_LIMIT_SELL(data) {
@@ -835,10 +835,10 @@ class Pair {
     }
 
     PARTIALLY_FILLED_LIMIT_BUY(data) {
-        print(this.pair, `PARTIALL FILLED BUY`);
+        print(this.pair, `WS: PARTIALL FILLED BUY`);
     }
     FILLED_LIMIT_BUY(data) {
-        print(this.pair, `FILLED BUY`);
+        print(this.pair, `WS: FILLED BUY`);
     }
 
     // async PARTIALLY_FILLED_LIMIT_BUY(data) {
