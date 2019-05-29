@@ -98,6 +98,7 @@ class Session {
                     print(pair, '4 errors in a short time, canceling buy orders and stopping.');
                     await Promise.all(this.pairs.map(async pair => {
                         const Pair = this.Pairs[pair];
+                        Pair.stopped = true;
                         if (Pair.order_id) Pair.cancel_buy();
                     }));
                     await this.sellAll();
