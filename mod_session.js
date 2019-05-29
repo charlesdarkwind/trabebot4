@@ -99,6 +99,7 @@ class Session {
                     await Promise.all(this.pairs.map(async pair => {
                         const Pair = this.Pairs[pair];
                         Pair.stopped = true;
+                        Pair.stopped_until = Date.now() + Pair.stop_time;
                         if (Pair.order_id) Pair.cancel_buy();
                     }));
                     await this.sellAll();
