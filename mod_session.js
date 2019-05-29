@@ -27,6 +27,7 @@ class Session {
         this.runned_once = false;
         this.PY_1_error_count = 0;  // cant fail 2 times in a row
         this.delay = 0;
+        this.error_count = 0;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -77,11 +78,34 @@ class Session {
      * Set initial pairs balance via rest, set BTC balances in Session
      * Only for traded pairs and BTC
      *
+     * decrement error count each fetchs, quit program if more than 3 errors in a a short time
+     *
+     *
      * @return {Promise<void>}
      */
     async initBalances() {
         await new Promise(async (resolve, reject) => {
-            const balances = await getBalances();
+            let balances = {};
+
+            try {
+                balances = await getBalances();
+                if (this.error_count >= 0) this.error_count--;
+            } catch (e) {
+                if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021)
+                    print('system', 'Timestamp for this request was 1000ms ahead of the server time.');
+                if (this.error_count > 3) {
+                    // Cancel all buy orders
+                    print(pair, '4 errors in a short time, canceling buy orders and stopping.');
+                    await Promise.all(this.pairs.map(async pair => {
+                        const Pair = this.Pairs[pair];
+                        if (Pair.order_id) Pair.cancel_buy();
+                    }));
+                    await this.sellAll();
+                    process.exit(1);
+                }
+                this.error_count++;
+            }
+
             for (const asset in balances) {
                 const pair = asset + 'BTC';
                 if (this.pairs.includes(pair)) {
@@ -163,6 +187,10 @@ class Session {
         }));
     }
 
+    /** Check balances to detect fills
+     *
+     * @return {Promise<void>}
+     */
     async handleBalanceChanges() {
         await this.initBalances();
         this.pairs.map(pair => {
@@ -274,7 +302,7 @@ class Session {
             } else if (this.comp_name == 'JAS-VPS' && this.comp_name == 'JAS-VPS') {
                 ls = spawn('python', ['mod_control.py'], {cwd: 'C:\\Users\\JAS\\Documents\\fetch_klines'});
             } else {
-                ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'}); // todo: fix path on vps
+                ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'});
             }
 
             if (this.log_level >= 2)

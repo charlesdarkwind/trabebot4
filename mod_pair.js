@@ -22,7 +22,7 @@ class Pair {
         this.buy_placed = false;
         this.buy_price = undefined;
         this.buy_time = undefined;
-        this.sl_pct = 18; // todo stop pair if sl
+        this.sl_pct = 18;
         this.sl_price = undefined;
         this.balance_available = undefined;
         this.balance_in_order = undefined;
@@ -143,7 +143,7 @@ class Pair {
      */
     setMinNotionalState() {
         this.position_size_is_over_minNotional = this.position_size * this.buy_line >= this.minNotional; // !Needs fresh position_size!
-        this.quantity_available_is_over_minNotional = this.balance_available * this.sell_line >= this.minNotional; // todo this quantity is not rounded perfectly
+        this.quantity_available_is_over_minNotional = this.balance_available * this.sell_line >= this.minNotional; // this quantity is not rounded perfectly
         this.quantity_total_is_over_minNotional = this.getTotalBalance() * this.sell_line >= this.minNotional;
     }
 
@@ -616,10 +616,10 @@ class Pair {
         this.buy_try_count = 0;
 
         const isValid = this.validate();
-        // this.setMinNotionalState();
-        // const hasMinNot = this.position_size_is_over_minNotional; // todo should fetch balance before?
+        this.setMinNotionalState();
+        const hasMinNot = this.position_size_is_over_minNotional;
 
-        if (isValid && !this.S.isConcurrentCountBusted()/* && hasMinNot*/) { // conditions
+        if (isValid && !this.S.isConcurrentCountBusted() && hasMinNot) { // conditions
             this.busy = true;
 
             // Cancel other buy
@@ -637,7 +637,7 @@ class Pair {
                 print(this.pair, 'is already in queue');
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place buy queue: Valid ${isValid}`);
+            print(this.pair, `Cant place buy queue: Valid ${isValid} hasMinNot: ${hasMinNot}`);
         }
         this.is_handling_place_buy = false;
     }
