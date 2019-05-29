@@ -93,6 +93,8 @@ class Session {
             } catch (e) {
                 if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021)
                     print('system', 'Timestamp for this request was 1000ms ahead of the server time.');
+                else
+                    print('system', 'Error when fetching balances', e);
                 if (this.error_count > 3) {
                     // Cancel all buy orders
                     print(pair, '4 errors in a short time, canceling buy orders and stopping.');
