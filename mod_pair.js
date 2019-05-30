@@ -350,7 +350,8 @@ class Pair {
         this.buy_placed = true;
         this.busy = false;
         this.is_placing_buy_order = false;
-        print(this.pair, `NEW BUY at price: ${res.price}`);
+        if (this.log_level >= 2)
+            print(this.pair, `NEW BUY at price: ${res.price}`);
     }
 
     /** BUY
