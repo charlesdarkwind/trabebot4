@@ -96,10 +96,7 @@ class Pair {
     validate(type = 'buy') {
         if (!this.stopped) {
             if (this.buy_count > 6 || this.error_count > 6) {
-
-                if (this.log_level >= 2)
-                    print(this.pair, `Stopping pair: Too many buys? ${this.buy_count > 6}, Too many err? ${this.error_count > 6}`);
-
+                print(this.pair, `Stopping pair: Too many buys? ${this.buy_count > 6}, Too many err? ${this.error_count > 6}`);
                 this.stop();
                 return false;
             }
@@ -162,10 +159,9 @@ class Pair {
 
     cancel_all_orders_error(e, side) { // both sell and buys
         this.error_count++;
-        print(this.pair, `Cancel all ${side} orders error:`, e);
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011) {
-            print(this.pair, 'Unknown order -2011');
-        }
+            print(this.pair, `Cancel all ${side} orders error: Unknown order -2011`);
+        } else print(this.pair, `Cancel all ${side} orders error: `, e);
     }
 
     cancel_all_orders_success(res, side) { // both sell and buys
@@ -198,7 +194,7 @@ class Pair {
 
     get_orders_error(e) { // both sell and buys
         this.error_count++;
-        print(this.pair, 'Error when querying open orders', err);
+        print(this.pair, 'Error when querying open orders', e);
     }
 
     async get_orders() { // both sell and buys
@@ -354,11 +350,7 @@ class Pair {
         this.buy_placed = true;
         this.busy = false;
         this.is_placing_buy_order = false;
-
-        if (this.log_level >= 2)
-            print(this.pair, `NEW BUY at price: ${res.price}`);
-
-        this.is_placing_buy_order = false;
+        print(this.pair, `NEW BUY at price: ${res.price}`);
     }
 
     /** BUY
@@ -516,9 +508,7 @@ class Pair {
         this.sell_order_id = res.orderId;
         this.sell_placed = true;
         this.busy = false;
-
-        if (this.log_level >= 2)
-            print(this.pair, `NEW SELL at price: ${res.price}`);
+        print(this.pair, `NEW SELL at price: ${res.price}`);
     }
 
     async place_sell_order() {
@@ -633,8 +623,7 @@ class Pair {
             const is_in_queue = this.limiter.getInfo(Pair, 'place_buy_order') == true;
             if (!is_in_queue) {
                 await this.limiter.limit('place_buy_order', this);
-            } else
-                print(this.pair, 'is already in queue');
+            } else print(this.pair, 'is already in queue');
 
         } else if (this.log_level >= 2) {
             print(this.pair, `Cant place buy queue: Valid ${isValid} hasMinNot: ${hasMinNot}`);
@@ -663,16 +652,16 @@ class Pair {
     }
 
     PARTIALLY_FILLED_LIMIT_SELL(data) {
-        print(this.pair, `WS: PARTIALL FILLED SELL`);
+        if (this.log_level >= 3) print(this.pair, `WS: PARTIALL FILLED SELL`);
     }
     FILLED_LIMIT_SELL(data) {
-        print(this.pair, `WS: FILLED SELL`);
+        if (this.log_level >= 3) print(this.pair, `WS: FILLED SELL`);
     }
     FILLED_MARKET_SELL(data) {
-        print(this.pair, `WS: FILLED SELL market`);
+        if (this.log_level >= 3) print(this.pair, `WS: FILLED SELL market`);
     }
     PARTIALLY_FILLED_MARKET_SELL(data) {
-        print(this.pair, `WS: PARTIALL FILLED SELL market`);
+        if (this.log_level >= 3) print(this.pair, `WS: PARTIALL FILLED SELL market`);
     }
 
     // async PARTIALLY_FILLED_LIMIT_SELL(data) {
@@ -739,7 +728,6 @@ class Pair {
      *
      */
     async handle_place_sell() {
-
         if (this.is_handling_place_sell) {
             if (this.log_level >= 2)
                 print(this.pair, 'Pair is already trying to handle place sell in parallel, returning...');
@@ -781,8 +769,7 @@ class Pair {
             const is_in_queue = this.limiter.getInfo(Pair, 'place_sell_order') == true;
             if (!is_in_queue)
                 await this.limiter.limit('place_sell_order', this);
-            else
-                print(this.pair, 'is already in queue');
+            else print(this.pair, 'is already in queue');
 
         } else if (this.log_level >= 2) {
             print(this.pair, `Cant place sell: Valid ${isValid} minNot ${this.quantity_total_is_over_minNotional}`);
@@ -792,26 +779,19 @@ class Pair {
 
     async tryMarketSell() {
         return new Promise((resolve, reject) => {
-
             this.setMinNotionalState();
             const qty = binance.roundStep(this.balance_available, this.stepSize);
-
             // Check lot_size (has MinQty)
             if (qty < this.minQty) {
-                if (this.log_level >= 2)
-                    print(this.pair, 'Not enought qty.');
+                print(this.pair, 'Not enought qty.');
                 resolve();
             } else if (this.quantity_total_is_over_minNotional) {
-
-                if (this.log_level >= 3)
-                    print(this.pair, 'Placing a sell order');
-
+                print(this.pair, 'Placing a sell order');
                 try {
                     binance.marketSell(this.pair, qty);
                 } catch (e) {
                     print(this.pair, 'Error during market sell', e);
                 }
-
             } else {
                 print(this.pair, 'Could not place order for some reason.');
             }
@@ -829,11 +809,11 @@ class Pair {
 
         // Filled ?
         if (totalBalance >= this.position_size) {
-            print(this.pair, `FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line}`);
+            print(this.pair, `FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line.toFixed(8)}`);
             delete this.order_id;
             this.buy_placed = false;
         } else {
-            print(this.pair, `PARTIALL FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line}`);
+            print(this.pair, `PARTIALL FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line.toFixed(8)}`);
         }
 
         if (!this.is_handling_place_sell)
@@ -841,10 +821,10 @@ class Pair {
     }
 
     PARTIALLY_FILLED_LIMIT_BUY(data) {
-        print(this.pair, `WS: PARTIALL FILLED BUY`);
+        if (this.log_level >= 3) print(this.pair, `WS: PARTIALL FILLED BUY`);
     }
     FILLED_LIMIT_BUY(data) {
-        print(this.pair, `WS: FILLED BUY`);
+        if (this.log_level >= 3) print(this.pair, `WS: FILLED BUY`);
     }
 
     // async PARTIALLY_FILLED_LIMIT_BUY(data) {
@@ -936,11 +916,15 @@ class Pair {
     /////////////////////////////////////////////////////////
 
     REJECTED_LIMIT_SELL() {
+        if (this.log_level >= 3)
+            print(this.pair, 'WS: REJECTED_LIMIT_SELL');
         this.error++;
         this.validate();
     }
 
     REJECTED_LIMIT_BUY() {
+        if (this.log_level >= 3)
+            print(this.pair, 'WS: REJECTED_LIMIT_BUY');
         this.error++;
         this.validate();
     }

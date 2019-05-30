@@ -69,9 +69,7 @@ class Session {
             P.precision = PRICE_FILTERS.tickSize.split('.')[1].split('1')[0].length + 1 || 0;
             P.round = 10 ** P.precision;
         }
-
-        if (this.log_level >= 3)
-            print('system', 'New exchange infos queried')
+        if (this.log_level >= 3) print('system', 'New exchange infos queried')
     }
 
     /**
@@ -299,6 +297,7 @@ class Session {
      */
     async callPythonKlines() {
         await new Promise((resolve, reject) => {
+            if (this.log_level >= 2) print('PY_1', 'Writing klines...');
 
             let ls = undefined;
             if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
@@ -308,9 +307,6 @@ class Session {
             } else {
                 ls = spawn('python', ['mod_control.py'], {cwd: '/home/jasmin/fetch_klines'});
             }
-
-            if (this.log_level >= 2)
-                print('PY_1', 'Writing klines...');
 
             ls.stdout.on('data', msg => { // Number of new klines and symbol infos printed
                 print('PY_1', msg);
@@ -382,6 +378,8 @@ class Session {
      */
     async callDfRecalc() {
         await new Promise((resolve, reject) => {
+            if (this.log_level >= 2) print('PY_2', 'Recalcing DFs...');
+
             let ls = undefined;
             if (os.platform() === 'win32' && this.comp_name == 'JAS-PC') {
                 ls = spawn('python', ['mod_control.py', '--server'], {cwd: 'W:\\backtester4\\sample'});
@@ -391,9 +389,6 @@ class Session {
                 // pair must be listed in [pairstotest] from the python mod_data script
                 ls = spawn('python', ['mod_control.py', '--server'], {cwd: '/home/jasmin/backtester4'});
             }
-
-            if (this.log_level >= 2)
-                print('PY_2', 'Recalcing DFs...');
 
             ls.stdout.on('data', msg => {
                 // print('PY_2', msg);
@@ -438,7 +433,7 @@ class Session {
         try {  // will simply print execution update names for wich not methods exists
             P[func](data);
         } catch (e) {
-            print('system', `${func}`);
+            if (this.log_level >= 2) print('system', `${func}`);
         }
     }
 
