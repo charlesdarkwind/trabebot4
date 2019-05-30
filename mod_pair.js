@@ -64,13 +64,11 @@ class Pair {
     async stop() {
         this.stopped = true;
         this.stopped_until = Date.now() + this.stop_time;
-        const orders = await this.get_orders();
-        const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == this.pair);
 
         if (this.log_level >= 2 && buyOrders.length)
             print(this.pair, 'Found buy orders, canceling those...');
 
-        await this.cancel_all_orders(buyOrders, 'buy');
+        await this.cancel_buy();
     }
 
     restart() {
@@ -405,7 +403,7 @@ class Pair {
             // Check for concurent count handling, canceling every buys of every orders
             await this.S.handleConcurentCount();
 
-            this.stopped_for_concurrent = true;  // set here and at session level only
+            // this.stopped_for_concurrent = true;  // set here and at session level only
             this.busy = false;
             this.is_placing_buy_order = false;
             return;

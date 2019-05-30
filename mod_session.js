@@ -271,15 +271,12 @@ class Session {
         if (!this.isConcurrentCountBusted()) return;
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
-            if (!Pair.stopped_for_concurrent && (Pair.order_id || Pair.buy_placed)) {
+            if (!Pair.stopped_for_concurrent && Pair.order_id) {
+                Pair.stopped_for_concurrent = true;
                 if (this.log_level >= 2)
                     print(pair, 'Concurrent count reached and pair have orders, canceling');
-                // Fetch all buy orders
-                const orders = await Pair.get_orders();
-                const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == pair);
                 // Cancel all buy orders
-                await Pair.cancel_all_orders(buyOrders, 'buy');
-                Pair.stopped_for_concurrent = true;
+                await Pair.cancel_buy();
             }
         }));
     }
