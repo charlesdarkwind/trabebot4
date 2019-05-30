@@ -56,6 +56,16 @@ const start = async () => {
     await S.callPythonKlines();
     await S.callDfRecalc();
 
+    let isRecalcing = false;
+    const recalc = async () => {
+        if (isRecalcing) return;
+        else isRecalcing = true;
+        await S.callPythonKlines();
+        await S.callDfRecalc();
+        await S.handle_new_prices();
+        isRecalcing = false;
+    };
+
     /** Open stream of updates for orders  (trades, execution state, ect...)
      *  Need to pass it actual Session instance
      */
@@ -83,17 +93,9 @@ const start = async () => {
     /** 10 mins
      *  INTERVAL:
      *      1. Decrement pairs buy & error counts
-     *      2. get klines
-     *      3. re-calc models / matrices / DFs
-     *      4. Fetch Balances
-     *      5. Cancel and place deviating orders (div)
      * */
     setInterval(async () => {
         S.decrementCounts();
-        await S.callPythonKlines();
-        await S.callDfRecalc();
-        await S.initBalances();
-        await S.handle_new_prices();
     }, 60000 * 10);
 
     /** 2 mins
@@ -121,6 +123,7 @@ const start = async () => {
      *
      */
     setInterval(async () => {
+        recalc();
         await S.handleBalanceChanges();
     }, 1000);
 

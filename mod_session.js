@@ -89,10 +89,10 @@ class Session {
                 balances = await getBalances();
                 if (this.error_count >= 0) this.error_count--;
             } catch (e) {
-                if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021)
+                if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021){
                     print('system', 'Timestamp for this request was 1000ms ahead of the server time.');
-                else
-                    print('system', 'Error when fetching balances', e);
+                    this.error_count++;
+                } else print('system', 'Error when fetching balances', e);
                 if (this.error_count > 3) {
                     // Cancel all buy orders
                     print(pair, '4 errors in a short time, canceling buy orders and stopping.');
@@ -105,7 +105,6 @@ class Session {
                     await this.sellAll();
                     process.exit(1);
                 }
-                this.error_count++;
             }
 
             for (const asset in balances) {
@@ -274,7 +273,7 @@ class Session {
             if (!Pair.stopped_for_concurrent && Pair.order_id) {
                 Pair.stopped_for_concurrent = true;
                 if (this.log_level >= 2)
-                    print(pair, 'Concurrent count reached and pair have orders, canceling');
+                    print(pair, 'Concurrent count reached and pair have buy order, canceling');
                 await Pair.cancel_buy();
             }
         }));
