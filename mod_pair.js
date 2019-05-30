@@ -262,7 +262,9 @@ class Pair {
     async cancel_buy_success(res) {
         delete this.order_id;
         this.buy_placed = false;
-        if (!this.cancelling_all_orders) this.busy = false;
+
+        if (!this.cancelling_all_orders)
+            this.busy = false;
 
         if (this.log_level >= 2)
             print(this.pair, `CANCELED BUY, will retry buy...`);
@@ -401,10 +403,8 @@ class Pair {
             if (this.log_level >= 2)
                 print(this.pair, 'Conc count reached, not buying + canceling pair buys');
 
-            // Check for concurent count handling, canceling every buys of every orders
+            // Check for concurent count handling, canceling every buys
             await this.S.handleConcurentCount();
-
-            // this.stopped_for_concurrent = true;  // set here and at session level only
             this.busy = false;
             this.is_placing_buy_order = false;
             return;
@@ -447,7 +447,9 @@ class Pair {
     async cancel_sell_success(res) {
         delete this.sell_order_id;
         this.sell_placed = false;
-        if (!this.cancelling_all_orders) this.busy = false;
+
+        if (!this.cancelling_all_orders)
+            this.busy = false;
 
         if (this.log_level >= 2)
             print(this.pair, `CANCELED SELL, will retry sell...`);

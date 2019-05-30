@@ -247,11 +247,11 @@ class Session {
         if (this.isConcurrentCountBusted()) return;
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
-            if (Pair.stopped_for_concurrent && !Pair.order_id && !Pair.buy_placed) {
+            if (Pair.stopped_for_concurrent && !Pair.order_id) {
+                Pair.stopped_for_concurrent = false;
                 if (this.log_level >= 2)
                     print(pair, 'Concurrent count diminished, buying again');
                 await Pair.handle_place_buy();
-                Pair.stopped_for_concurrent = false;
             }
         }));
     }
