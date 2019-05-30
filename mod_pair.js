@@ -224,6 +224,7 @@ class Pair {
             this.buy_placed = false;
             print(this.pair, 'Pair had no buy orders');
         }
+        this.busy = false;
     }
 
     async check_sell_orders() {
@@ -245,6 +246,7 @@ class Pair {
             delete this.sell_order_id;
             print(this.pair, 'Pair had no sell orders');
         }
+        this.busy = false;
     }
 
     /////////////////////////////////////////////////////////
@@ -255,7 +257,6 @@ class Pair {
         this.error_count++;
         print(this.pair, `Error when canceling buy order, checking orders... ${this.order_id} ${this.buy_placed}`, e);
         await this.check_buy_orders();
-        this.busy = false;  // todo good?
     }
 
     async cancel_buy_success(res) {
@@ -441,7 +442,6 @@ class Pair {
         this.error_count++;
         print(this.pair, 'Error when canceling sell order, checking orders...', e);
         await this.check_sell_orders();
-        this.busy = false;
     }
 
     async cancel_sell_success(res) {
@@ -750,7 +750,7 @@ class Pair {
 
         const isValid = this.validate();
         this.setMinNotionalState();
-        if (isValid && this.quantity_total_is_over_minNotional) { // conditions
+        if (isValid && this.quantity_total_is_over_minNotional) {
             this.busy = true;
 
             // Cancel other sell

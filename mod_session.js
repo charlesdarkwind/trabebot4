@@ -275,7 +275,6 @@ class Session {
                 Pair.stopped_for_concurrent = true;
                 if (this.log_level >= 2)
                     print(pair, 'Concurrent count reached and pair have orders, canceling');
-                // Cancel all buy orders
                 await Pair.cancel_buy();
             }
         }));
