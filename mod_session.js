@@ -73,6 +73,17 @@ class Session {
         if (this.log_level >= 3) print('system', 'New exchange infos queried')
     }
 
+    async cancelThenSellAllOrders() {
+        await Promise.all(this.pairs.map(async pair => {
+            const Pair = this.Pairs[pair];
+            Pair.stopped = true;
+            Pair.stopped_until = Date.now() + Pair.stop_time;
+            if (Pair.order_id) Pair.cancel_buy();
+        }));
+        await this.sellAll();
+        process.exit(1);
+    }
+
     /**
      * Set initial pairs balance via rest, set BTC balances in Session
      * Only for traded pairs and BTC
@@ -95,16 +106,8 @@ class Session {
                     this.error_count++;
                 } else print('system', 'Error when fetching balances', e);
                 if (this.error_count > 3) {
-                    // Cancel all buy orders
                     print(pair, '4 errors in a short time, canceling buy orders and stopping.');
-                    await Promise.all(this.pairs.map(async pair => {
-                        const Pair = this.Pairs[pair];
-                        Pair.stopped = true;
-                        Pair.stopped_until = Date.now() + Pair.stop_time;
-                        if (Pair.order_id) Pair.cancel_buy();
-                    }));
-                    await this.sellAll();
-                    process.exit(1);
+                    await cancelThenSellAllOrders();
                 }
             }
 
@@ -359,7 +362,7 @@ class Session {
                 print('system', `   Soonest: ${soonest}`);
             }
         } catch (e) {
-            print('system', 'Error when parsing tresholds, using old ones.', e)
+            print('system', 'Error when parsing tresholds, using old ones and waiting for next try.', e)
         }
     }
 
@@ -395,13 +398,13 @@ class Session {
             });
 
             ls.on('close', code => {
+                // Do not reject since if klines failed then we can retry next time
                 if (code !== 0) print('PY_2', `Python 2 process exited with code ${code}`);
                 this.parseDF(); // Parse DFs
                 resolve();
             });
         });
     }
-
 
     balanceUpdate(data, S) {
         setImmediate(() => {
@@ -484,10 +487,12 @@ class Session {
                 || date.getMinutes() === 45)
         ) {
             this.isRecalcing = true;
+            let tries = 0;
             try {  // retry until resolves
+                tries++;
                 await this.callPythonKlines();
             } catch (e) {
-                print('recalc', 'Err during python 1 klines fetching (REST)', e);
+                print('recalc', `Error on PY_1, will retry... ${tries} tries`, e);
                 await this.callPythonKlines();
             }
             await this.callDfRecalc();
