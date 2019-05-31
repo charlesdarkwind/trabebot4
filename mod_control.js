@@ -106,7 +106,6 @@ const start = async () => {
      */
     setInterval(async () => {
         await S.handleConcurentCount();
-        // await S.handleUnassessedBalances();
     }, 30000);
 
     /** 1 secs

@@ -479,7 +479,8 @@ class Session {
     async recalc() {
         if (this.isRecalcing) return;
         const date = new Date();
-        if (date.getMinutes() === 0
+        if (date.getSeconds() > 10
+            && date.getMinutes() === 0
             || date.getMinutes() === 15
             || date.getMinutes() === 30
             || date.getMinutes() === 45
