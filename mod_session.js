@@ -28,6 +28,7 @@ class Session {
         this.PY_1_error_count = 0;  // cant fail 2 times in a row
         this.delay = 0;
         this.error_count = 0;
+        this.isRecalcing = false;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -89,7 +90,7 @@ class Session {
                 balances = await getBalances();
                 if (this.error_count >= 0) this.error_count--;
             } catch (e) {
-                if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021){
+                if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021) {
                     print('system', 'Timestamp for this request was 1000ms ahead of the server time.');
                     this.error_count++;
                 } else print('system', 'Error when fetching balances', e);
@@ -473,6 +474,22 @@ class Session {
                 await Pair.tryMarketSell();
             }, this.getDelay());
         }));
+    }
+
+    async recalc() {
+        if (this.isRecalcing) return;
+        const date = new Date();
+        if (date.getMinutes() === 0
+            || date.getMinutes() === 15
+            || date.getMinutes() === 30
+            || date.getMinutes() === 45
+        ) {
+            this.isRecalcing = true;
+            await this.callPythonKlines();
+            await this.callDfRecalc();
+            await this.handle_new_prices();
+            this.isRecalcing = false;
+        }
     }
 }
 

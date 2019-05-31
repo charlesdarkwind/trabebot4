@@ -56,16 +56,6 @@ const start = async () => {
     await S.callPythonKlines();
     await S.callDfRecalc();
 
-    let isRecalcing = false;
-    const recalc = async () => {
-        if (isRecalcing) return;
-        else isRecalcing = true;
-        await S.callPythonKlines();
-        await S.callDfRecalc();
-        await S.handle_new_prices();
-        isRecalcing = false;
-    };
-
     /** Open stream of updates for orders  (trades, execution state, ect...)
      *  Need to pass it actual Session instance
      */
@@ -123,7 +113,7 @@ const start = async () => {
      *
      */
     setInterval(async () => {
-        recalc();
+        S.recalc();
         await S.handleBalanceChanges();
     }, 1000);
 
