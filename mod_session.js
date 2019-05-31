@@ -305,28 +305,23 @@ class Session {
             }
 
             ls.stdout.on('data', msg => { // Number of new klines and symbol infos printed
-                print('PY_1', msg);
+                // print('PY_1', msg);
             });
 
             ls.stderr.on('data', data => {
-                if (typeof data == 'object') print('PY_1', Object.keys(data)); // means corrupted klines
-                else print(typeof data);
                 print('PY_1', 'Err during python 1 klines fetching (REST)', data.toString());
             });
 
             ls.on('close', code => {
-
-                if (this.log_level >= 3 || code !== 0)
+                if (code !== 0) {
                     print('PY_1', `Python 1 process exited with code ${code}`);
-
-                // Exit if fail on very first klines fetch err or second in a row
-                if (!this.runned_once && code !== 0) {
-                    print('system', `Exiting since first run and no treshold fallback.`);
-                    process.exit(1);
+                    if (!this.runned_once) {
+                        print('system', `Exiting since first run and no treshold fallback.`);
+                        process.exit(1);
+                    }
+                    reject('Rejecting for retry...');
                 }
                 this.runned_once = true;
-
-                if (code !== 0) reject();
                 resolve();
             });
         });
@@ -345,21 +340,26 @@ class Session {
      * }
      */
     parseDF() {
-        this.tresholds = JSON.parse(fs.readFileSync(this.thresh_path));
-        for (const pair in this.Pairs) {
-            const Pair = this.Pairs[pair];
-            const len = this.tresholds[pair].sell_line.length;
-            Pair.sell_line = this.tresholds[pair].sell_line[len - 1];
-            Pair.buy_line = this.tresholds[pair].buy_line[len - 1];
-        }
-
-        if (this.log_level >= 3) {
-            const or = this.tresholds['time'].sort((a, b) => a - b);
-            const oldest = moment(or[0]).format('MMM D, H:mm');
-            const soonest = moment(or[or.length - 1]).format('MMM D, H:mm');
-            print('system', `Retrieved tresholds:`);
-            print('system', `   Oldest: ${oldest}`);
-            print('system', `   Soonest: ${soonest}`);
+        let tresholds = undefined;
+        try {
+            tresholds = JSON.parse(fs.readFileSync(this.thresh_path));
+            this.tresholds = tresholds; // Prevents assigning corrupted values?
+            for (const pair in this.Pairs) {
+                const Pair = this.Pairs[pair];
+                const len = this.tresholds[pair].sell_line.length;
+                Pair.sell_line = this.tresholds[pair].sell_line[len - 1];
+                Pair.buy_line = this.tresholds[pair].buy_line[len - 1];
+            }
+            if (this.log_level >= 3) {
+                const or = this.tresholds['time'].sort((a, b) => a - b);
+                const oldest = moment(or[0]).format('MMM D, H:mm');
+                const soonest = moment(or[or.length - 1]).format('MMM D, H:mm');
+                print('system', `Retrieved tresholds:`);
+                print('system', `   Oldest: ${oldest}`);
+                print('system', `   Soonest: ${soonest}`);
+            }
+        } catch (e) {
+            print('system', 'Error when parsing tresholds, using old ones.', e)
         }
     }
 
@@ -395,9 +395,7 @@ class Session {
             });
 
             ls.on('close', code => {
-                if (this.log_level >= 3 || code !== 0)
-                    print('PY_2', `Python 2 process exited with code ${code}`);
-                if (code !== 0) reject();
+                if (code !== 0) print('PY_2', `Python 2 process exited with code ${code}`);
                 this.parseDF(); // Parse DFs
                 resolve();
             });
@@ -486,7 +484,12 @@ class Session {
                 || date.getMinutes() === 45)
         ) {
             this.isRecalcing = true;
-            await this.callPythonKlines();
+            try {  // retry until resolves
+                await this.callPythonKlines();
+            } catch (e) {
+                print('recalc', 'Err during python 1 klines fetching (REST)', e);
+                await this.callPythonKlines();
+            }
             await this.callDfRecalc();
             await this.handle_new_prices();
             this.isRecalcing = false;

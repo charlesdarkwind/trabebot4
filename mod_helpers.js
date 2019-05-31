@@ -39,6 +39,7 @@ const print = (pair, message, e, other) => {
             if (!body && typeof e === 'object') console.warn(e); // any error w/o body at the end (can be big)
             console.warn(e.stack);
         }
+        if (typeof message != 'string') return;
         saveLog({
             emitter: pair,
             message,

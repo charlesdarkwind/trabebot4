@@ -64,10 +64,6 @@ class Pair {
     async stop() {
         this.stopped = true;
         this.stopped_until = Date.now() + this.stop_time;
-
-        if (this.log_level >= 2 && buyOrders.length)
-            print(this.pair, 'Found buy orders, canceling those...');
-
         await this.cancel_buy();
     }
 
@@ -627,7 +623,7 @@ class Pair {
             } else print(this.pair, 'is already in queue');
 
         } else if (this.log_level >= 2) {
-            print(this.pair, `Cant place buy queue: Valid ${isValid} hasMinNot: ${hasMinNot}`);
+            print(this.pair, `Cant place buy in queue: Valid ${isValid} hasMinNot: ${hasMinNot}`);
         }
         this.is_handling_place_buy = false;
     }
