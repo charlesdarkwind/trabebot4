@@ -484,7 +484,7 @@ class Session {
      *
      * @return {Promise<void>}
      */
-    async tryFetch() {
+    async tryFetch () {
         try {
             this.tries++;
             await this.callPythonKlines();
@@ -492,6 +492,23 @@ class Session {
         } catch (e) {
             print('recalc', `Error on PY_1, will retry... ${tries} tries`, e);
             await this.tryFetch();
+        }
+    }
+
+    async recalc() {
+        if (this.isRecalcing) return;
+        const date = new Date();
+        if (date.getSeconds() > 10
+            && (date.getMinutes() === 0
+                || date.getMinutes() === 15
+                || date.getMinutes() === 30
+                || date.getMinutes() === 45)
+        ) {
+            this.isRecalcing = true;
+            await this.tryFetch();
+            await this.callDfRecalc();
+            await this.handle_new_prices();
+            this.isRecalcing = false;
         }
     }
 }
