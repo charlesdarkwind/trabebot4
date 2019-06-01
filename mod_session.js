@@ -484,7 +484,7 @@ class Session {
      *
      * @return {Promise<void>}
      */
-    async tryFetch () {
+    async tryFetch() {
         try {
             this.tries++;
             await this.callPythonKlines();
@@ -510,6 +510,28 @@ class Session {
             await this.handle_new_prices();
             this.isRecalcing = false;
         }
+    }
+
+    async initKlineStream(pair, delay) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                binance.websockets.chart(pair, '15m', (symbol, interval, chart) => {
+                    this.pairs[symbol].chart = chart;
+                });
+                resolve();
+            }, delay);
+        });
+    }
+
+    async initKlineStreams() {
+        let delay = 0;
+        await Promise.all(this.pairs.map(pair => this.initKlineStream(pair, delay += 150)));
+    }
+
+    writeCharts() {
+        this.pairs.map(pair => {
+            const P = this.pairs[pair];
+        });
     }
 }
 

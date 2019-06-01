@@ -26,7 +26,7 @@ const print = (pair, message, e, other) => {
         let date = moment().format('MMM D, H:mm:ss');
         str += `${' '.repeat(str.length > 100 ? 100 : 100 - str.length)}| ${date}`;
         console.log(str);
-        let errStr = '', trace;
+        let errStr = '';
         if (other) console.warn(other);
         if (e) {
             const body = e && e.body ? JSON.parse(e.body) : null;
@@ -37,7 +37,6 @@ const print = (pair, message, e, other) => {
             if (errStr && e.body) console.warn(`\n${str}\n${errStr}`); // e.body? dont show trace
             else if (errStr) console.trace(`\n${str}\n${errStr}\n`); // show trace
             if (!body && typeof e === 'object') console.warn(e); // any error w/o body at the end (can be big)
-            console.warn(e.stack);
         }
         if (typeof message != 'string') return;
         saveLog({
