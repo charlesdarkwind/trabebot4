@@ -29,6 +29,7 @@ class Session {
         this.delay = 0;
         this.error_count = 0;
         this.isRecalcing = false;
+        this.tries = 0;
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -283,15 +284,9 @@ class Session {
         }));
     }
 
-    /**
-     * callPythonKlines
-     *
-     * Calls python process 1, fetching missing klines
-     *
+    /**Calls python process 1, fetching missing klines
      * Klines are written to disk. Can take some time depending on time since last run.
-     *
      * dest klines = /home/jasmin/fetch_klines/klines/15m/Binance_BTCUSDT_15m_1533081600000-1554374417584.json
-     *
      * @return {Promise<void>}
      */
     async callPythonKlines() {
@@ -312,7 +307,15 @@ class Session {
             });
 
             ls.stderr.on('data', data => {
-                print('PY_1', 'Err during python 1 klines fetching (REST)', data.toString());
+                console.log(Buffer.isBuffer(data)); // todo remove
+                if (Buffer.isBuffer(data)) {
+                    try {
+                        print('PY_1', 'Err during python 1 klines fetching (REST) (is a buffer):', JSON.parse(data.toJSON()));
+                    } catch (e) {
+                        print('PY_1', 'Err during python 1 klines fetching (REST) (not a buffer):', data.toString());
+                    }
+                }
+
             });
 
             ls.on('close', code => {
@@ -477,6 +480,21 @@ class Session {
         }));
     }
 
+    /** Try PY_1 (fetch klines) recursively until success
+     *
+     * @return {Promise<void>}
+     */
+    async tryFetch () {
+        try {
+            this.tries++;
+            await this.callPythonKlines();
+            this.tries = 0;
+        } catch (e) {
+            print('recalc', `Error on PY_1, will retry... ${tries} tries`, e);
+            await this.tryFetch();
+        }
+    }
+
     async recalc() {
         if (this.isRecalcing) return;
         const date = new Date();
@@ -487,14 +505,7 @@ class Session {
                 || date.getMinutes() === 45)
         ) {
             this.isRecalcing = true;
-            let tries = 0;
-            try {  // retry until resolves
-                tries++;
-                await this.callPythonKlines();
-            } catch (e) {
-                print('recalc', `Error on PY_1, will retry... ${tries} tries`, e);
-                await this.callPythonKlines();
-            }
+            await this.tryFetch();
             await this.callDfRecalc();
             await this.handle_new_prices();
             this.isRecalcing = false;
