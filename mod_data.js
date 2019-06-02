@@ -13,8 +13,8 @@ exports.updateExhangeInfos = () => new Promise(resolve => {
     });
 });
 
-exports.generateMads = (charts, pairs) => {
-    const start = Date.now();
-    for (i =)
-    print('system', `took ${(Date.now() - start) / 1000} seconds`)
-};
+// exports.generateMads = (charts, pairs) => {
+//     const start = Date.now();
+//     for (i =)
+//     print('system', `took ${(Date.now() - start) / 1000} seconds`)
+// };
