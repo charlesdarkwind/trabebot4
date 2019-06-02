@@ -1,3 +1,4 @@
+process.env.UV_THREADPOOL_SIZE = 128;
 require('dotenv').config({path: 'variables.env'});
 const fs = require('fs');
 const mongoose = require('mongoose');
