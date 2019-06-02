@@ -110,6 +110,7 @@ class Session {
                 } else if (e.error) {
                     try { // todo remove
                         console.log(Object.keys(e));
+                        console.log(e.code);
                     } catch (e) {
 
                     }
@@ -117,21 +118,17 @@ class Session {
                 } else if (e.message) {
                     try { // todo remove
                         console.log(Object.keys(e));
+                        console.log(e.code);
                     } catch (e) {
 
                     }
-                    print('system', e.e.message);
+                    print('system', e.message);
                 } else {
-                    try { // todo remove
-                        console.log(Object.keys(e));
-                    } catch (e) {
-
-                    }
                     print('system', 'Error when fetching balances', e);
                 }
                 if (this.error_count > 3) {
-                    print(pair, '4 errors in a short time, canceling buy orders and stopping.');
-                    await cancelThenSellAllOrders();
+                    print('system', '4 errors in a short time, canceling buy orders and stopping.');
+                    await this.cancelThenSellAllOrders();
                 }
             }
 
@@ -526,12 +523,12 @@ class Session {
             this.isRecalcing = false;
         }
     }
-    //
+
     // async initKlineStream(pair, delay) {
     //     return new Promise((resolve, reject) => {
     //         setTimeout(() => {
     //             binance.websockets.chart(pair, '15m', (symbol, interval, chart) => {
-    //                 this.chart[symbol] = chart;
+    //                 this.chart[symbol] = binance.ohlc(chart);
     //             });
     //             resolve();
     //         }, delay);

@@ -12,3 +12,9 @@ exports.updateExhangeInfos = () => new Promise(resolve => {
         else resolve(data);
     });
 });
+
+exports.generateMads = (charts, pairs) => {
+    const start = Date.now();
+    for (i =)
+    print('system', `took ${(Date.now() - start) / 1000} seconds`)
+};
