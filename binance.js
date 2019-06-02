@@ -7,7 +7,7 @@ const binance = new Binance().options({
     APISECRET: process.env.APISECRET,
     useServerTime: true,
     recvWindow: 20000,
-    verbose: false,
+    verbose: true,
     log(...args) {
         console.warn(
             Array.prototype.slice.call(args),

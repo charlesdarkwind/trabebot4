@@ -30,6 +30,7 @@ class Session {
         this.error_count = 0;
         this.isRecalcing = false;
         this.tries = 0;
+        this.chart = {};
 
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
@@ -102,10 +103,32 @@ class Session {
                 balances = await getBalances();
                 if (this.error_count >= 0) this.error_count--;
             } catch (e) {
+
                 if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021) {
                     print('system', 'Timestamp for this request was 1000ms ahead of the server time.');
                     this.error_count++;
-                } else print('system', 'Error when fetching balances', e);
+                } else if (e.error) {
+                    try { // todo remove
+                        console.log(Object.keys(e));
+                    } catch (e) {
+
+                    }
+                    print('system', e.error);
+                } else if (e.message) {
+                    try { // todo remove
+                        console.log(Object.keys(e));
+                    } catch (e) {
+
+                    }
+                    print('system', e.e.message);
+                } else {
+                    try { // todo remove
+                        console.log(Object.keys(e));
+                    } catch (e) {
+
+                    }
+                    print('system', 'Error when fetching balances', e);
+                }
                 if (this.error_count > 3) {
                     print(pair, '4 errors in a short time, canceling buy orders and stopping.');
                     await cancelThenSellAllOrders();
@@ -306,16 +329,8 @@ class Session {
                 // print('PY_1', msg);
             });
 
-            ls.stderr.on('data', data => {
-                console.log(Buffer.isBuffer(data)); // todo remove
-                if (Buffer.isBuffer(data)) {
-                    try {
-                        print('PY_1', 'Err during python 1 klines fetching (REST) (is a buffer):', JSON.parse(data.toJSON()));
-                    } catch (e) {
-                        print('PY_1', 'Err during python 1 klines fetching (REST) (not a buffer):', data.toString());
-                    }
-                }
-
+            ls.stderr.on('data', data => {  // a buffer
+                print('PY_1', 'Err during python 1 klines fetching (probably binance timeout)');
             });
 
             ls.on('close', code => {
@@ -490,7 +505,7 @@ class Session {
             await this.callPythonKlines();
             this.tries = 0;
         } catch (e) {
-            print('recalc', `Error on PY_1, will retry... ${tries} tries`, e);
+            print('recalc', `Error on PY_1, will retry... ${this.tries} tries`, e);
             await this.tryFetch();
         }
     }
@@ -511,6 +526,27 @@ class Session {
             this.isRecalcing = false;
         }
     }
+    //
+    // async initKlineStream(pair, delay) {
+    //     return new Promise((resolve, reject) => {
+    //         setTimeout(() => {
+    //             binance.websockets.chart(pair, '15m', (symbol, interval, chart) => {
+    //                 this.chart[symbol] = chart;
+    //             });
+    //             resolve();
+    //         }, delay);
+    //     });
+    // }
+    //
+    // async initKlineStreams() {
+    //     let delay = 0;
+    //     await Promise.all(this.pairs.map(pair => this.initKlineStream(pair, delay += 150)));
+    // }
+    //
+    // writeCharts() {
+    //     fs.writeFileSync('./charts.json', JSON.stringify(this.chart));
+    //     print('system', 'klines saved');
+    // }
 }
 
 module.exports = Session;
