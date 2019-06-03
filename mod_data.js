@@ -157,7 +157,7 @@ exports.generateSlopes = (charts, pairs, options, fastMode) => {
         pair_slopes[pair] = sma2 / sma20;
     }
 
-    // global slope
+    // squared global slope
     for (let i = 0; i < pairsLen; i++) {
         const pair = pairs[i];
         let sum = 0;
@@ -167,7 +167,7 @@ exports.generateSlopes = (charts, pairs, options, fastMode) => {
             if (pair == otherPair) continue;
             sum += pair_slopes[otherPair];
         }
-        gobal_slopes[pair] = sum / (pairsLen -1);
+        gobal_slopes[pair] = (sum / (pairsLen -1) ** 2);
     }
 
 
