@@ -6,6 +6,7 @@ const {print} = require('./mod_helpers');
 const {spawn} = require('child_process');
 const Pair = require('./mod_pair');
 const util = require('util');
+const {generateMads, generateSmaBaseSells, generateMedians, generateSlopes} = require('./mod_data');
 const getExchangeInfos = util.promisify(binance.exchangeInfo);
 const getBalances = util.promisify(binance.balance);
 
@@ -21,6 +22,7 @@ class Session {
         this.options = options;
         this.log_level = options.log_level;
         this.concurrent_count = 0;
+        // noinspection JSCheckFunctionSignatures
         this.pairs_excluded = JSON.parse(fs.readFileSync('./pairs.json')).pairs_excluded;
         this.Pairs = {};
         this.comp_name = process.env['COMPUTERNAME'];
@@ -30,8 +32,9 @@ class Session {
         this.error_count = 0;
         this.isRecalcing = false;
         this.tries = 0;
-        this.chart = {};
+        this.charts = {};
 
+        // noinspection JSCheckFunctionSignatures
         this.pairs = JSON.parse(fs.readFileSync('./pairs.json')).pairs;
         if (this.options.num_pairs < 70)
             this.pairs = this.pairs.slice(0, this.options.num_pairs);
@@ -360,6 +363,7 @@ class Session {
     parseDF() {
         let tresholds = undefined;
         try {
+            // noinspection JSCheckFunctionSignatures
             tresholds = JSON.parse(fs.readFileSync(this.thresh_path));
             this.tresholds = tresholds; // Prevents assigning corrupted values?
             for (const pair in this.Pairs) {
@@ -441,6 +445,7 @@ class Session {
         const pair = data.s;
         if (!S.pairs.includes(pair)) return;
         const P = S.Pairs[pair];
+        // noinspection JSUnresolvedVariable
         const func = `${data.X}_${data.o}_${data.S}`; // eg. FILLED_LIMIT_BUY  NEW_LIMIT_BUY
         try {  // will simply print execution update names for wich not methods exists
             P[func](data);
@@ -507,6 +512,11 @@ class Session {
         }
     }
 
+    /**
+     * Call python programs and handle new prices
+     *
+     * @return {Promise<void>}
+     */
     async recalc() {
         if (this.isRecalcing) return;
         const date = new Date();
@@ -524,26 +534,50 @@ class Session {
         }
     }
 
-    // async initKlineStream(pair, delay) {
-    //     return new Promise((resolve, reject) => {
-    //         setTimeout(() => {
-    //             binance.websockets.chart(pair, '15m', (symbol, interval, chart) => {
-    //                 this.chart[symbol] = binance.ohlc(chart);
-    //             });
-    //             resolve();
-    //         }, delay);
-    //     });
-    // }
-    //
-    // async initKlineStreams() {
-    //     let delay = 0;
-    //     await Promise.all(this.pairs.map(pair => this.initKlineStream(pair, delay += 150)));
-    // }
-    //
-    // writeCharts() {
-    //     fs.writeFileSync('./charts.json', JSON.stringify(this.chart));
-    //     print('system', 'klines saved');
-    // }
+    async initKlineStream(pair, delay) {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => {
+                binance.websockets.chart(pair, '15m', (symbol, interval, chart) => {
+                    this.charts[symbol] = binance.ohlc(chart);
+                    if (symbol == 'ZENBTC') { //todo remove
+                        const keys = Object.keys(chart);
+                        console.log(keys.slice(-10))
+                        console.log(chart[keys[keys.length-2]])
+                        console.log(chart[keys[keys.length-1]])
+                    }
+                });
+                resolve();
+            }, delay);
+        });
+    }
+
+    async initKlineStreams() {
+        let delay = 0;
+        await Promise.all(this.pairs.map(pair => this.initKlineStream(pair, delay += 150)));
+    }
+
+    writeCharts() {
+        // this.mads = generateMads(this.charts, this.pairs, this.options.dataOptions, false);
+        // this.baseSells = generateSmaBaseSells(this.charts, this.pairs, this.options.dataOptions, false);
+        // this.medians = generateMedians(this.charts, this.pairs, this.options.dataOptions, this.baseSells, false);
+        // this.slopes = generateSlopes(this.charts, this.pairs, this.options.dataOptions, false);
+
+        // fs.writeFileSync('./charts_raw.json', JSON.stringify(this.charts));
+        const data = JSON.parse(fs.readFileSync('./charts_raw.json'));
+
+        this.mads = generateMads(data, this.pairs, this.options.dataOptions, true);
+        this.baseSells = generateSmaBaseSells(data, this.pairs, this.options.dataOptions, false);
+        this.medians = generateMedians(data, this.pairs, this.options.dataOptions, this.baseSells, false);
+        this.slopes = generateSlopes(data, this.pairs, this.options.dataOptions, false);
+
+        fs.writeFileSync('./charts.json', JSON.stringify({
+            mads: this.mads,
+            baseSells: this.baseSells,
+            medians: this.medians,
+            slopes: this.slopes
+        }));
+
+    }
 }
 
 module.exports = Session;

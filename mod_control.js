@@ -25,7 +25,12 @@ const options = {
     concurent_count_max: 20,
     position_divider_default: 70.5,
     position_divider: 70.5,
-    num_pairs: 70
+    num_pairs: 70,
+    dataOptions: {
+        base_dev_lo_mult: 0.99,
+        base_dev_hi_mult: 1,
+        mad_window: 125
+    }
 };
 
 require('./models/Log');

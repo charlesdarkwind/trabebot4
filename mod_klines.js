@@ -22,10 +22,18 @@ mongoose.connection.on('error', err => console.warn(`mongoose connection error: 
 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
-    concurent_count_max: 15,
+    concurent_count_max: 20,
     position_divider_default: 70.5,
     position_divider: 70.5,
-    num_pairs: 70
+    num_pairs: 70,
+    dataOptions: {
+        base_dev_lo_mult: 0.99,
+        base_dev_hi_mult: 1,
+        mad_window: 125,
+        sma_base_sell: 20,
+        sma_median: 20,
+        sma_slope_pair: 20
+    }
 };
 
 require('./models/Log');
@@ -53,11 +61,14 @@ const start = async () => {
     const S = new Session(limiter, options);
     S.createPairs(limiter, options);
     await S.setInfo();
-    await S.initKlineStreams();
+    // await S.initKlineStreams();
+    S.writeCharts();
+    // setTimeout(() => {
+    //     S.writeCharts();
+    //
+    // }, 12000);
 
-    setTimeout(() => {
-        S.writeCharts();
-    }, S.pairs.length * 170)
+    // const data = JSON.parse(fs.readFileSync('./pairs.json'));
 };
 
 start();
