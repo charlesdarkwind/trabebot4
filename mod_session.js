@@ -487,7 +487,7 @@ class Session {
      * @return {Promise<void>}
      */
     async sellAll() {
-        this.parseDF();
+        this.recalcTresholds();
         await Promise.all(this.pairs.map(async pair => {
             const Pair = this.Pairs[pair];
             this.incDelay(150);
@@ -539,12 +539,6 @@ class Session {
             setTimeout(() => {
                 binance.websockets.chart(pair, '15m', (symbol, interval, chart) => {
                     this.charts[symbol] = binance.ohlc(chart);
-                    if (symbol == 'ZENBTC') { //todo remove
-                        const keys = Object.keys(chart);
-                        console.log(keys.slice(-10))
-                        console.log(chart[keys[keys.length-2]])
-                        console.log(chart[keys[keys.length-1]])
-                    }
                 });
                 resolve();
             }, delay);
@@ -556,27 +550,33 @@ class Session {
         await Promise.all(this.pairs.map(pair => this.initKlineStream(pair, delay += 150)));
     }
 
-    writeCharts() {
-        // this.mads = generateMads(this.charts, this.pairs, this.options.dataOptions, false);
-        // this.baseSells = generateSmaBaseSells(this.charts, this.pairs, this.options.dataOptions, false);
-        // this.medians = generateMedians(this.charts, this.pairs, this.options.dataOptions, this.baseSells, false);
-        // this.slopes = generateSlopes(this.charts, this.pairs, this.options.dataOptions, false);
+    /**
+     *  Calls a set of data wrangling functions.
+     *  Once recalcs are done, the final price tresholds are set using those results.
+     */
+    async recalcTresholds() {
+        if (this.isRecalcing) return;
+        this.isRecalcing = true;
 
-        // fs.writeFileSync('./charts_raw.json', JSON.stringify(this.charts));
-        const data = JSON.parse(fs.readFileSync('./charts_raw.json'));
+        this.mads = generateMads(this.charts, this.pairs, this.options.dataOptions, true);
+        this.baseSells = generateSmaBaseSells(this.charts, this.pairs, this.options.dataOptions, true);
+        this.medians = generateMedians(this.charts, this.pairs, this.options.dataOptions, this.baseSells, true);
+        this.slopes = generateSlopes(this.charts, this.pairs, this.options.dataOptions, true);
 
-        this.mads = generateMads(data, this.pairs, this.options.dataOptions, true);
-        this.baseSells = generateSmaBaseSells(data, this.pairs, this.options.dataOptions, false);
-        this.medians = generateMedians(data, this.pairs, this.options.dataOptions, this.baseSells, false);
-        this.slopes = generateSlopes(data, this.pairs, this.options.dataOptions, false);
+        for (let i = 0; i < this.pairs.length; i++) {
+            const pair = this.pairs[i];
+            const Pair = this.Pairs[pair];
+            const loMad = this.mads[pair].loMad;
+            const hiMad = this.mads[pair].hiMad;
+            const baseSell = this.baseSells[pair];
+            const median = this.medians[pair];
+            const slope = this.slopes[pair];
+            Pair.buy_line = median * loMad * slope;
+            Pair.sell_line = baseSell * hiMad * slope;
+        }
 
-        fs.writeFileSync('./charts.json', JSON.stringify({
-            mads: this.mads,
-            baseSells: this.baseSells,
-            medians: this.medians,
-            slopes: this.slopes
-        }));
-
+        await this.handle_new_prices();
+        this.isRecalcing = false;
     }
 }
 

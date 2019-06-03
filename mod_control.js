@@ -29,7 +29,10 @@ const options = {
     dataOptions: {
         base_dev_lo_mult: 0.99,
         base_dev_hi_mult: 1,
-        mad_window: 125
+        mad_window: 125,
+        sma_base_sell: 20,
+        sma_median: 20,
+        sma_slope_pair: 20
     }
 };
 
@@ -46,10 +49,9 @@ const format = 'MMM D, H:mm:ss';
  *      1. Create pairs objs
  *      2. fetch exchange infos                                 REST
  *      3. fetch balances                                       REST
- *      4. Call python program 1, fetching missing klines       REST   PYTHON
- *      5. Call python program 2, calculating dataframes        PANDAS PYTHON
- *      6. Start order updates stream                           WEB SOCKET
- *      7. Place first buys after 2 seconds                     REST + WEB SOCKET
+ *      4.       WEB SOCKET
+ *      5. Start order updates stream                           WEB SOCKET
+ *      6. Place first buys after 2 seconds                     REST + WEB SOCKET
  *
  * @return {Promise<void>}
  */
@@ -59,13 +61,21 @@ const start = async () => {
     S.createPairs(limiter, options);
     await S.setInfo();
     await S.initBalances();
-    await S.callPythonKlines();
-    await S.callDfRecalc();
+    await S.initKlineStreams();
 
     /** Open stream of updates for orders  (trades, execution state, ect...)
      *  Need to pass it actual Session instance
      */
     binance.websockets.userData(data => S.balanceUpdate(data, S), data => S.executionUpdate(data, S));
+
+    // Sleep 5 secs
+    await new Promise((resolve, reject) => {
+       setTimeout(() => {
+           resolve();
+       }, 5000)
+    });
+
+    S.recalcTresholds();
 
     /** Place first buys in 2 seconds */
     setTimeout(async () => {
@@ -118,7 +128,8 @@ const start = async () => {
      *
      */
     setInterval(async () => {
-        S.recalc();
+        // S.recalc();
+        S.recalcTresholds();
         await S.handleBalanceChanges();
     }, 1000);
 

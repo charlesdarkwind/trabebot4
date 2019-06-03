@@ -167,9 +167,8 @@ exports.generateSlopes = (charts, pairs, options, fastMode) => {
             if (pair == otherPair) continue;
             sum += pair_slopes[otherPair];
         }
-        gobal_slopes[pair] = (sum / (pairsLen -1) ** 2);
+        gobal_slopes[pair] = (sum / (pairsLen -1)) ** 2;
     }
-
 
     return gobal_slopes;
 };

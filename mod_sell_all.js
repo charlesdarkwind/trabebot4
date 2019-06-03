@@ -19,7 +19,15 @@ const options = {
     concurent_count_max: 20,
     position_divider_default: 70.5,
     position_divider: 70.5,
-    num_pairs: 70
+    num_pairs: 70,
+    dataOptions: {
+        base_dev_lo_mult: 0.99,
+        base_dev_hi_mult: 1,
+        mad_window: 125,
+        sma_base_sell: 20,
+        sma_median: 20,
+        sma_slope_pair: 20
+    }
 };
 
 require('./models/Log');
@@ -41,6 +49,16 @@ const start = async () => {
     S.createPairs(limiter, options);
     await S.setInfo();
     await S.initBalances();
+    await S.initKlineStreams();
+
+    // Sleep 5 secs
+    await new Promise((resolve, reject) => {
+        setTimeout(() => {
+            resolve();
+        }, 5000)
+    });
+
+    S.recalcTresholds();
 
     await S.sellAll();
     print('system', 'done');

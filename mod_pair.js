@@ -782,15 +782,13 @@ class Pair {
             if (qty < this.minQty) {
                 print(this.pair, 'Not enought qty.');
                 resolve();
-            } else if (this.quantity_total_is_over_minNotional) {
+            } else {
                 print(this.pair, 'Placing a sell order');
                 try {
                     binance.marketSell(this.pair, qty);
                 } catch (e) {
                     print(this.pair, 'Error during market sell', e);
                 }
-            } else {
-                print(this.pair, 'Could not place order for some reason.');
             }
             resolve();
         });
@@ -876,12 +874,12 @@ class Pair {
 
             if (this.busy || this.cancelling_all_orders) {
 
-                if (this.log_level >= 3)
-                    print(this.pair, 'Checking div but is busy, trying again in 5 secs...');
+                // if (this.log_level >= 3)
+                //     print(this.pair, 'Checking div but is busy, trying again in 5 secs...');
 
-                setTimeout(async () => {
-                    await this.handle_new_prices();
-                }, 5000);
+                // setTimeout(async () => {
+                //     await this.handle_new_prices();
+                // }, 5000);
 
                 resolve();
                 return;

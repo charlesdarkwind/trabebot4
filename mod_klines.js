@@ -62,11 +62,15 @@ const start = async () => {
     S.createPairs(limiter, options);
     await S.setInfo();
     // await S.initKlineStreams();
-    S.writeCharts();
+    S.recalcTresholds();
     // setTimeout(() => {
     //     S.writeCharts();
     //
     // }, 12000);
+
+    setInterval(() => {
+
+    }, )
 
     // const data = JSON.parse(fs.readFileSync('./pairs.json'));
 };
