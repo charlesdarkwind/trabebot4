@@ -859,14 +859,14 @@ class Pair {
     hasBuyLineDiv() {
         const div = this.last_buy_line / this.buy_line;
         this.div_buy = div;
-        return div > 1.004 || div < 0.996;
+        return div > 1.006 || div < 0.994;
     }
 
     hasSellLineDiv() {
         if (!this.last_sell_line) return false;
         const div = this.last_sell_line / this.sell_line;
         this.div_sell = div;
-        return div > 1.004 || div < 0.996;
+        return div > 1.006 || div < 0.994;
     }
 
     async handle_new_prices() {
