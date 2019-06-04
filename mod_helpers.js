@@ -26,7 +26,7 @@ const print = (pair, message, e, other) => {
         let date = moment().format('MMM D, H:mm:ss');
         str += `${' '.repeat(str.length > 100 ? 100 : 100 - str.length)}| ${date}`;
         console.log(str);
-        let errStr = '';
+        let errStr = '', trace;
         if (other) console.warn(other);
         if (e) {
             const body = e && e.body ? JSON.parse(e.body) : null;

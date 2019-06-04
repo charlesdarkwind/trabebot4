@@ -30,6 +30,7 @@ class Pair {
         this.profit = 0;
         this.sl_count = 0;
         this.buy_count = 0;
+        this.sell_count = 0;
         this.error_count = 0;
         this.stopped = false;
         this.busy = false;
@@ -52,8 +53,8 @@ class Pair {
     }
 
     decrementBuyCounts() {
-        if (this.buy_count > 0)
-            this.buy_count--;
+        if (this.buy_count > 0) this.buy_count--;
+        if (this.sell_count > 0) this.sell_count--;
     }
 
     decrementErrorCounts() {
@@ -87,16 +88,16 @@ class Pair {
      *
      * @return {boolean} - False if invalid else true
      */
-    validate(type = 'buy') {
+    validate() {
         if (!this.stopped) {
-            if (this.buy_count > 6 || this.error_count > 6) {
-                print(this.pair, `Stopping pair: Too many buys? ${this.buy_count > 6}, Too many err? ${this.error_count > 6}`);
+            if (this.buy_count > 6 || this.error_count > 6 || this.sell_count > 8) {
+                print(this.pair, `Stopping pair: Too many buys? ${this.buy_count > 6} Too many sells? ${this.sell_count > 8}, Too many err? ${this.error_count > 6}`);
                 this.stop();
                 return false;
             }
         } else if (this.stopped && Date.now() > this.stopped_until) {
             this.restart();
-        } else if (this.stopped && Date.now() < this.stopped_until && type != 'sell') {
+        } else if (this.stopped && Date.now() < this.stopped_until) {
             return false;
         }
         return true;
@@ -143,8 +144,9 @@ class Pair {
      * @return {Promise<void>}
      */
     async order_infos(res) {
-        const order = await openOrders.catch(err => console.log(err));
-        print(this.pairs, `Err cancel resp`, err);
+        const order = await openOrders.catch(err => {
+            print(this.pairs, `Error when querying orders`, err);
+        });
     }
 
     /////////////////////////////////////////////////////////
@@ -501,6 +503,7 @@ class Pair {
     }
 
     sell_success(res) {
+        this.sell_count++;
         this.last_sell_line = res.price; // use price reported instead of sell_line so manual orders can be re-placed
         this.sell_order_id = res.orderId;
         this.sell_placed = true;
@@ -509,7 +512,7 @@ class Pair {
     }
 
     async place_sell_order() {
-        if (!this.validate('sell')) return;
+        if (!this.validate()) return;
         this.busy = true;
 
         // Check balances again
@@ -857,14 +860,14 @@ class Pair {
     /////////////////////////////////////////////////////////
 
     hasBuyLineDiv() {
-        const div = this.last_buy_line / this.buy_line;
+        const div = this.rnd(this.last_buy_line) / this.rnd(this.buy_line);
         this.div_buy = div;
         return div > 1.004 || div < 0.996;
     }
 
     hasSellLineDiv() {
         if (!this.last_sell_line) return false;
-        const div = this.last_sell_line / this.sell_line;
+        const div = this.rnd(this.last_sell_line) / this.rnd(this.sell_line);
         this.div_sell = div;
         return div > 1.004 || div < 0.996;
     }
@@ -873,33 +876,21 @@ class Pair {
         return new Promise(async (resolve, reject) => {
 
             if (this.busy || this.cancelling_all_orders) {
-
-                // if (this.log_level >= 3)
-                //     print(this.pair, 'Checking div but is busy, trying again in 5 secs...');
-
-                // setTimeout(async () => {
-                //     await this.handle_new_prices();
-                // }, 5000);
-
                 resolve();
                 return;
             }
 
             if (this.order_id && this.hasBuyLineDiv()) {
-
                 if (this.log_level >= 3)
                     print(this.pair, `Cancelling buy for div ${this.div_buy.toFixed(3)}...`);
-
-                // Cancel, (place is attempted after cancel WS response)
+                // Cancel, (re-place is attempted after cancel response)
                 await this.cancel_buy();
             }
 
             if (this.sell_order_id && this.hasSellLineDiv()) {
-
                 if (this.log_level >= 3)
                     print(this.pair, `Cancelling sell for div ${this.div_sell.toFixed(3)} ...`);
-
-                // Cancel, (place is attempted after cancel WS response)
+                // Cancel, (re-place is attempted after cancel response)
                 await this.cancel_sell();
             }
             resolve();
