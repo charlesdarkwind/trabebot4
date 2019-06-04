@@ -31,6 +31,7 @@ class Pair {
         this.sl_count = 0;
         this.buy_count = 0;
         this.sell_count = 0;
+        this.div_count = 0;
         this.error_count = 0;
         this.stopped = false;
         this.busy = false;
@@ -55,6 +56,7 @@ class Pair {
     decrementBuyCounts() {
         if (this.buy_count > 0) this.buy_count--;
         if (this.sell_count > 0) this.sell_count--;
+        if (this.div_count > 0) this.div_count--;
     }
 
     decrementErrorCounts() {
@@ -861,17 +863,32 @@ class Pair {
     //////////////// CANCEL FOR NEW PRICES //////////////////
     /////////////////////////////////////////////////////////
 
+
     hasBuyLineDiv() {
+        let upperLimit = 1.004, lowerLimit = 0.996;
+
+        for (let i = 0; i < this.div_count; i++) {
+            upperLimit += 0.001;
+            lowerLimit -= 0.001;
+        }
+
         const div = this.rnd(this.last_buy_line) / this.rnd(this.buy_line);
         this.div_buy = div;
-        return div > 1.005 || div < 0.995;
+        return div > upperLimit || div < lowerLimit;
     }
 
     hasSellLineDiv() {
         if (!this.last_sell_line) return false;
+        let upperLimit = 1.004, lowerLimit = 0.996;
+
+        for (let i = 0; i < this.div_count; i++) {
+            upperLimit += 0.001;
+            lowerLimit -= 0.001;
+        }
+
         const div = this.rnd(this.last_sell_line) / this.rnd(this.sell_line);
         this.div_sell = div;
-        return div > 1.005 || div < 0.995;
+        return div > upperLimit || div < lowerLimit;
     }
 
     async handle_new_prices() {
@@ -882,16 +899,22 @@ class Pair {
                 return;
             }
 
-            if (this.order_id && this.hasBuyLineDiv() && this.buy_count < 5) {
+            if (this.order_id && this.hasBuyLineDiv()) {
+                this.div_count++;
+
                 if (this.log_level >= 3)
                     print(this.pair, `Cancelling buy for div ${this.div_buy.toFixed(3)}...`);
+
                 // Cancel, (re-place is attempted after cancel response)
                 await this.cancel_buy();
             }
 
-            if (this.sell_order_id && this.hasSellLineDiv() && this.sell_count < 5) {
+            if (this.sell_order_id && this.hasSellLineDiv()) {
+                this.div_count++;
+
                 if (this.log_level >= 3)
                     print(this.pair, `Cancelling sell for div ${this.div_sell.toFixed(3)} ...`);
+
                 // Cancel, (re-place is attempted after cancel response)
                 await this.cancel_sell();
             }
