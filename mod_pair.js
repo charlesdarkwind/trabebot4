@@ -891,18 +891,12 @@ class Pair {
 
         if (hasDiv) {
             // Check if price is the same as last after float-fixing
-            if (last_buy_line.toFixed(8) == buy_line.toFixed(8)) {
-                print(this.pair, `Had div but same prices! ${last_buy_line} ${buy_line} ${last_buy_line.toFixed(8)} ${buy_line.toFixed(8)}`); // todo remove
-                return false;
-            }
+            if (last_buy_line.toFixed(8) == buy_line.toFixed(8)) return false;
 
-            // If before last price was same price then it must be 7 minutes ago or more
+            // If before last price was same price after float-fixing,  then it must be 7 minutes ago or more
             const sameAsBeforeLast = this.before_last_buy_line && this.rnd(this.before_last_buy_line).toFixed(8) == buy_line.toFixed(8);
             const longEnoughtSinceThen = this.before_last_buy_line && Date.now() - this.before_last_buy_line_time > (60000 * 7); // 7 mins
-            if (sameAsBeforeLast && !longEnoughtSinceThen) {
-                print(this.pair, `had dive but price is same as before last! ${this.before_last_buy_line} ${buy_line}`); // todo remove
-                return false;
-            }
+            if (sameAsBeforeLast && !longEnoughtSinceThen) return false;
 
             return true;
         }
