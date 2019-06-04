@@ -98,7 +98,7 @@ const start = async () => {
 
     /** 10 mins
      *  INTERVAL:
-     *      1. Decrement pairs buy & error counts
+     *      1. Decrement pairs buy, sell & error counts
      * */
     setInterval(async () => {
         S.decrementCounts();

@@ -289,6 +289,7 @@ class Pair {
      * @return {Promise<void>}
      */
     async cancel_buy() {
+        if (!this.order_id) return;
         this.busy = true;
 
         if (this.log_level >= 3)
@@ -457,6 +458,7 @@ class Pair {
     }
 
     async cancel_sell() {
+        if (!this.sell_order_id) return;
         this.busy = true;
 
         if (this.log_level >= 3)
@@ -862,14 +864,14 @@ class Pair {
     hasBuyLineDiv() {
         const div = this.rnd(this.last_buy_line) / this.rnd(this.buy_line);
         this.div_buy = div;
-        return div > 1.004 || div < 0.996;
+        return div > 1.005 || div < 0.995;
     }
 
     hasSellLineDiv() {
         if (!this.last_sell_line) return false;
         const div = this.rnd(this.last_sell_line) / this.rnd(this.sell_line);
         this.div_sell = div;
-        return div > 1.004 || div < 0.996;
+        return div > 1.005 || div < 0.995;
     }
 
     async handle_new_prices() {
@@ -880,14 +882,14 @@ class Pair {
                 return;
             }
 
-            if (this.order_id && this.hasBuyLineDiv()) {
+            if (this.order_id && this.hasBuyLineDiv() && this.buy_count < 5) {
                 if (this.log_level >= 3)
                     print(this.pair, `Cancelling buy for div ${this.div_buy.toFixed(3)}...`);
                 // Cancel, (re-place is attempted after cancel response)
                 await this.cancel_buy();
             }
 
-            if (this.sell_order_id && this.hasSellLineDiv()) {
+            if (this.sell_order_id && this.hasSellLineDiv() && this.sell_count < 5) {
                 if (this.log_level >= 3)
                     print(this.pair, `Cancelling sell for div ${this.div_sell.toFixed(3)} ...`);
                 // Cancel, (re-place is attempted after cancel response)
