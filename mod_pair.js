@@ -37,6 +37,11 @@ class Pair {
         this.busy = false;
         this.buy_line = undefined;
         this.last_buy_line = undefined;
+        this.before_last_buy_line = undefined;
+        this.before_last_buy_line_time = undefined;
+        this.last_sell_line = undefined;
+        this.before_last_sell_line = undefined;
+        this.before_last_sell_line_time = undefined;
         this.isConcurrent = false;
         this.partial_fill_prices_buy = [];
         this.partial_fill_prices_sell = [];
@@ -348,6 +353,7 @@ class Pair {
     buy_success(res) {
         this.buy_count++;
         this.order_id = res.orderId;
+        this.before_last_buy_line = this.last_buy_line;
         this.last_buy_line = this.buy_line;
         this.buy_placed = true;
         this.busy = false;
@@ -508,6 +514,8 @@ class Pair {
 
     sell_success(res) {
         this.sell_count++;
+        this.before_last_sell_line = this.last_sell_line;
+        this.before_last_sell_line_time = Date.now();
         this.last_sell_line = res.price; // use price reported instead of sell_line so manual orders can be re-placed
         this.sell_order_id = res.orderId;
         this.sell_placed = true;
@@ -658,12 +666,15 @@ class Pair {
     PARTIALLY_FILLED_LIMIT_SELL(data) {
         if (this.log_level >= 3) print(this.pair, `WS: PARTIALL FILLED SELL`);
     }
+
     FILLED_LIMIT_SELL(data) {
         if (this.log_level >= 3) print(this.pair, `WS: FILLED SELL`);
     }
+
     FILLED_MARKET_SELL(data) {
         if (this.log_level >= 3) print(this.pair, `WS: FILLED SELL market`);
     }
+
     PARTIALLY_FILLED_MARKET_SELL(data) {
         if (this.log_level >= 3) print(this.pair, `WS: PARTIALL FILLED SELL market`);
     }
@@ -825,6 +836,7 @@ class Pair {
     PARTIALLY_FILLED_LIMIT_BUY(data) {
         if (this.log_level >= 3) print(this.pair, `WS: PARTIALL FILLED BUY`);
     }
+
     FILLED_LIMIT_BUY(data) {
         if (this.log_level >= 3) print(this.pair, `WS: FILLED BUY`);
     }
@@ -866,29 +878,63 @@ class Pair {
 
     hasBuyLineDiv() {
         let upperLimit = 1.004, lowerLimit = 0.996;
+        const last_buy_line = this.rnd(this.last_buy_line);
+        const buy_line = this.rnd(this.buy_line);
+        const div = last_buy_line / buy_line;
+        this.div_buy = div;
 
         for (let i = 0; i < this.div_count; i++) {
             upperLimit += 0.001;
             lowerLimit -= 0.001;
         }
+        const hasDiv = div > upperLimit || div < lowerLimit;
 
-        const div = this.rnd(this.last_buy_line) / this.rnd(this.buy_line);
-        this.div_buy = div;
-        return div > upperLimit || div < lowerLimit;
+        if (hasDiv) {
+            // Check if price is the same as last after float-fixing
+            if (last_buy_line.toFixed(8) == buy_line.toFixed(8)) {
+                print(this.pair, `Had div but same prices! ${last_buy_line} ${buy_line} ${last_buy_line.toFixed(8)} ${buy_line.toFixed(8)}`); // todo remove
+                return false;
+            }
+
+            // If before last price was same price then it must be 7 minutes ago or more
+            const sameAsBeforeLast = this.before_last_buy_line && this.rnd(this.before_last_buy_line).toFixed(8) == buy_line.toFixed(8);
+            const longEnoughtSinceThen = this.before_last_buy_line && Date.now() - this.before_last_buy_line_time > (60000 * 7); // 7 mins
+            if (sameAsBeforeLast && !longEnoughtSinceThen) {
+                print(this.pair, `had dive but price is same as before last! ${this.before_last_buy_line} ${buy_line}`); // todo remove
+                return false;
+            }
+
+            return true;
+        }
+        return false;
     }
 
     hasSellLineDiv() {
         if (!this.last_sell_line) return false;
         let upperLimit = 1.004, lowerLimit = 0.996;
+        const last_sell_line = this.rnd(this.last_sell_line);
+        const sell_line = this.rnd(this.sell_line);
+        const div = last_sell_line / sell_line;
+        this.div_sell = div;
 
         for (let i = 0; i < this.div_count; i++) {
             upperLimit += 0.001;
             lowerLimit -= 0.001;
         }
+        const hasDiv = div > upperLimit || div < lowerLimit;
 
-        const div = this.rnd(this.last_sell_line) / this.rnd(this.sell_line);
-        this.div_sell = div;
-        return div > upperLimit || div < lowerLimit;
+        if (hasDiv) {
+            // Check if price is the same as last after float-fixing
+            if (last_sell_line.toFixed(8) == sell_line.toFixed(8)) return false;
+
+            // If before last price was same price then it must be 7 minutes ago or more
+            const sameAsBeforeLast = this.before_last_sell_line && this.rnd(this.before_last_sell_line).toFixed(8) == sell_line.toFixed(8);
+            const longEnoughtSinceThen = this.before_last_sell_line && Date.now() - this.before_last_sell_line_time > (60000 * 7); // 7 mins
+            if (sameAsBeforeLast && !longEnoughtSinceThen) return false;
+
+            return true;
+        }
+        return false;
     }
 
     async handle_new_prices() {
