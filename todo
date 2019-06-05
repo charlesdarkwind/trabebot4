@@ -15,8 +15,6 @@ trade bot:
     solution tried: this.is_handling_place_sell = false; inside place_sell_error
     potential solutions: put it in FILL ws response?
 
-    Sometimes PARTIALL FILL happens after FILLED, triggering an useless cancel of old for place of new order
-
     Future: change its not 70 limit orders at all time but one order placed when price reached
             so bigger positions can be placed
 

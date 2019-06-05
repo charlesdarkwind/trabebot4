@@ -106,7 +106,6 @@ class Session {
                 balances = await getBalances();
                 if (this.error_count >= 0) this.error_count--;
             } catch (e) {
-
                 if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021) {
                     print('system', 'Timestamp for this request was 1000ms ahead of the server time.');
                     this.error_count++;
@@ -117,7 +116,7 @@ class Session {
                     } catch (e) {
 
                     }
-                    print('system', e.error);
+                    print('system', 'error ' + e.error);
                 } else if (e.message) {
                     try { // todo remove
                         console.log(Object.keys(e));
@@ -125,7 +124,7 @@ class Session {
                     } catch (e) {
 
                     }
-                    print('system', e.message);
+                    print('system', 'message '+ e.message);
                 } else {
                     print('system', 'Error when fetching balances', e);
                 }
