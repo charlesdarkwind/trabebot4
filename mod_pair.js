@@ -141,6 +141,7 @@ class Pair {
      * Check if total quantity >= minNotional, (qty loking to sell (full position) after cancel of sell order)
      */
     setMinNotionalState() {
+        this.setPositionSize();
         this.position_size_is_over_minNotional = this.position_size * this.buy_line >= this.minNotional; // !Needs fresh position_size!
         this.quantity_available_is_over_minNotional = this.balance_available * this.sell_line >= this.minNotional; // this quantity is not rounded perfectly
         this.quantity_total_is_over_minNotional = this.getTotalBalance() * this.sell_line >= this.minNotional;
