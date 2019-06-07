@@ -41,7 +41,7 @@ class Pair {
         this.before_last_buy_line_time = undefined;
         this.last_sell_line = undefined;
         this.before_last_sell_line = undefined;
-        this.before_last_sell_line_time = undefined;
+        this.before_last_sell_line_time = 0;
         this.isConcurrent = false;
         this.partial_fill_prices_buy = [];
         this.partial_fill_prices_sell = [];

@@ -98,18 +98,12 @@ const start = async () => {
     /** 10 mins
      *  INTERVAL:
      *      1. Decrement pairs buy, sell & error counts
+     *      2. check orders
      * */
     setInterval(async () => {
         S.decrementCounts();
-    }, 60000 * 10);
-
-    /** 5 mins
-     *  INTERVAL:
-     *      1. Check orders
-     * */
-    setInterval(async () => {
         S.checkOrders();
-    }, 60000 * 5);
+    }, 60000 * 10);
 
     /** 2 mins
      *  INTERVAL:
