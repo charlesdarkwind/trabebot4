@@ -23,8 +23,7 @@ mongoose.connection.on('error', err => console.warn(`mongoose connection error: 
 const options = {
     log_level: 3, // 1: normal, 2: a bit spammy, 3: everything
     concurent_count_max: 20,
-    position_divider_default: 70.5,
-    position_divider: 70.5,
+    position_size: 0.039,
     num_pairs: 70,
     dataOptions: {
         base_dev_lo_mult: 0.99,
@@ -103,6 +102,14 @@ const start = async () => {
     setInterval(async () => {
         S.decrementCounts();
     }, 60000 * 10);
+
+    /** 5 mins
+     *  INTERVAL:
+     *      1. Check orders
+     * */
+    setInterval(async () => {
+        S.checkOrders();
+    }, 60000 * 5);
 
     /** 2 mins
      *  INTERVAL:

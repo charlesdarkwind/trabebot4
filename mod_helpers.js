@@ -70,7 +70,3 @@ exports.repairDatabase = () => {
         if (err) print('mongoose', 'Error when repairing DB.', err);
     });
 };
-
-// exports.pythonProg = new Promise((success, err) => {
-//     spawn('python', [], )
-// });

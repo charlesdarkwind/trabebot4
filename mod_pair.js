@@ -120,9 +120,9 @@ class Pair {
      */
 
     setPositionSize() {
-        const totalBTC = this.S.balance_btc_available + this.S.balance_btc_in_order;
+        // const totalBTC = this.S.balance_btc_available + this.S.balance_btc_in_order;
         // Position size max in BTC (capital divided by number of coins to trade)
-        this.positionSizeInBTC = totalBTC / this.S.options.position_divider;
+        this.positionSizeInBTC = this.S.options.position_size;
         // Position size max in COIN
         this.positionSizeRawInCoin = this.positionSizeInBTC / this.buy_line;
         // Position size max in COIN rounded, used to print out fill percentage
@@ -204,27 +204,30 @@ class Pair {
     async get_orders() { // both sell and buys
         return new Promise((resolve, reject) => {
             binance.openOrders(this.pair, (e, openOrders) => {
-                if (e) this.get_orders_error(e);
+                if (e) this.get_orders_error(e.message ? e.message : e.code ? e.code : e);
                 else resolve(openOrders);
             });
         });
     }
 
-    async check_buy_orders() {
-        const orders = await this.get_orders();
-        const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == this.pair);
+    async check_buy_orders(buyOrders = null) {
+        if (buyOrders === null) {
+            const orders = await this.get_orders();
+            buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == this.pair);
+        }
 
         if (buyOrders.length >= 2) {
             this.error_count++;
             print(this.pair, 'CHECK: 2 buy orders or more, canceling all...');
             await this.cancel_all_orders(buyOrders, 'buy');
 
-            // Order was there with another ID, cancel it
-        } else if (buyOrders.length == 1) {
+            // Order was there with another ID, cancel it or
+        } else if (buyOrders.length == 1 && (!this.order_id || this.order_id != buyOrders[0].orderId)) {
             this.error_count++;
             this.order_id = buyOrders[0].orderId;
             print(this.pair, 'CHECK: buy order found with different ID, canceling...');
             await this.cancel_buy();
+
         } else {
             delete this.order_id;
             this.buy_placed = false;
@@ -233,9 +236,11 @@ class Pair {
         this.busy = false;
     }
 
-    async check_sell_orders() {
-        const orders = await this.get_orders();
-        const sellOrders = orders.filter(order => order.side == 'SELL' && order.symbol == this.pair);
+    async check_sell_orders(sellOrders = null) {
+        if (sellOrders === null) {
+            const orders = await this.get_orders();
+            sellOrders = orders.filter(order => order.side == 'SELL' && order.symbol == this.pair);
+        }
 
         if (sellOrders.length >= 2) {
             this.error_count++;
@@ -243,11 +248,12 @@ class Pair {
             await this.cancel_all_orders(sellOrders, 'sell');
 
             // Order was there with another ID, cancel it
-        } else if (sellOrders.length == 1) {
+        } else if (sellOrders.length == 1 && (!this.sell_order_id || this.sell_order_id != sellOrders[0].orderId)) {
             this.error_count++;
             this.sell_order_id = sellOrders[0].orderId;
             print(this.pair, 'CHECK: sell order found with different ID, canceling...');
             await this.cancel_sell();
+
         } else {
             delete this.sell_order_id;
             print(this.pair, 'Pair had no sell orders');
