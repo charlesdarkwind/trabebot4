@@ -210,11 +210,14 @@ class Pair {
         });
     }
 
-    async check_buy_orders(buyOrders = null) {
-        if (buyOrders === null) {
-            const orders = await this.get_orders();
-            buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == this.pair);
-        }
+    /**
+     * Only call when the intention was to cancel a buy order
+     *
+     * @return {Promise<void>}
+     */
+    async check_buy_orders() {
+        const orders = await this.get_orders();
+        const buyOrders = orders.filter(order => order.side == 'BUY' && order.symbol == this.pair);
 
         if (buyOrders.length >= 2) {
             this.error_count++;
@@ -236,11 +239,14 @@ class Pair {
         this.busy = false;
     }
 
-    async check_sell_orders(sellOrders = null) {
-        if (sellOrders === null) {
-            const orders = await this.get_orders();
-            sellOrders = orders.filter(order => order.side == 'SELL' && order.symbol == this.pair);
-        }
+    /**
+     * Only call when the intention was to cancel a sell order
+     *
+     * @return {Promise<void>}
+     */
+    async check_sell_orders() {
+        const orders = await this.get_orders();
+        const sellOrders = orders.filter(order => order.side == 'SELL' && order.symbol == this.pair);
 
         if (sellOrders.length >= 2) {
             this.error_count++;
