@@ -95,7 +95,7 @@ class Pair {
      *
      * @return {boolean} - False if invalid else true
      */
-    validate() {
+    validate(type='buy') {
         if (!this.stopped) {
             if (this.buy_count > 6 || this.error_count > 6 || this.sell_count > 8) {
                 print(this.pair, `Stopping pair: Too many buys? ${this.buy_count > 6} Too many sells? ${this.sell_count > 8}, Too many err? ${this.error_count > 6}`);
@@ -104,7 +104,7 @@ class Pair {
             }
         } else if (this.stopped && Date.now() > this.stopped_until) {
             this.restart();
-        } else if (this.stopped && Date.now() < this.stopped_until) {
+        } else if (this.stopped && Date.now() < this.stopped_until && type != 'sell') {
             return false;
         }
         return true;
@@ -531,7 +531,7 @@ class Pair {
     }
 
     async place_sell_order() {
-        if (!this.validate()) return;
+        if (!this.validate('sell')) return;
         this.busy = true;
 
         // Check balances again
