@@ -102,7 +102,6 @@ const start = async () => {
      * */
     setInterval(async () => {
         S.decrementCounts();
-        // S.checkOrders();
     }, 60000 * 10);
 
     /** 2 mins
