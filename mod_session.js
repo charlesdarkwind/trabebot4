@@ -109,22 +109,8 @@ class Session {
                 if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -1021) {
                     print('system', 'Timestamp for this request was 1000ms ahead of the server time.');
                     this.error_count++;
-                } else if (e.error) {
-                    try { // todo remove
-                        console.log(Object.keys(e));
-                        console.log(e.code);
-                    } catch (e) {
-
-                    }
-                    print('system', 'error ' + e.error);
                 } else if (e.message) {
-                    try { // todo remove
-                        console.log(Object.keys(e));
-                        console.log(e.code);
-                    } catch (e) {
-
-                    }
-                    print('system', 'message '+ e.message);
+                    print('system', 'message ' + e.message);
                 } else {
                     print('system', 'Error when fetching balances', e);
                 }

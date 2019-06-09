@@ -95,7 +95,7 @@ class Pair {
      *
      * @return {boolean} - False if invalid else true
      */
-    validate(type='buy') {
+    validate(type = 'buy') {
         if (!this.stopped) {
             if (this.buy_count > 6 || this.error_count > 6 || this.sell_count > 8) {
                 print(this.pair, `Stopping pair: Too many buys? ${this.buy_count > 6} Too many sells? ${this.sell_count > 8}, Too many err? ${this.error_count > 6}`);
@@ -224,14 +224,27 @@ class Pair {
             print(this.pair, 'CHECK: 2 buy orders or more, canceling all...');
             await this.cancel_all_orders(buyOrders, 'buy');
 
-            // Order was there with another ID, cancel it or
-        } else if (buyOrders.length == 1 && (!this.order_id || this.order_id != buyOrders[0].orderId)) {
-            this.error_count++;
-            this.order_id = buyOrders[0].orderId;
-            print(this.pair, 'CHECK: buy order found with different ID, canceling...');
-            await this.cancel_buy();
+            // Theres only one open order
+        } else if (buyOrders.length == 1) {
 
-        } else {
+            if (this.order_id != buyOrders[0].orderId) {
+                this.error_count++;
+                this.order_id = buyOrders[0].orderId;
+                print(this.pair, 'CHECK: buy order found with different ID, canceling...');
+                await this.cancel_buy();
+
+            } else if (!this.order_id) {
+                this.error_count++;
+                this.order_id = buyOrders[0].orderId;
+                print(this.pair, 'CHECK: had no buy order_id but found a buy order, cancelling...');
+                await this.cancel_buy();
+
+                // All good with order
+            } else {
+                print(this.pair, `CHECK: no problem found with buy order, same id: (${this.order_id == buyOrders[0].orderId})`);
+            }
+
+        } else if (buyOrders.length === 0) {
             delete this.order_id;
             this.buy_placed = false;
             print(this.pair, 'Pair had no buy orders');
@@ -254,13 +267,26 @@ class Pair {
             await this.cancel_all_orders(sellOrders, 'sell');
 
             // Order was there with another ID, cancel it
-        } else if (sellOrders.length == 1 && (!this.sell_order_id || this.sell_order_id != sellOrders[0].orderId)) {
-            this.error_count++;
-            this.sell_order_id = sellOrders[0].orderId;
-            print(this.pair, 'CHECK: sell order found with different ID, canceling...');
-            await this.cancel_sell();
+        } else if (sellOrders.length == 1) {
 
-        } else {
+            if (this.sell_order_id != sellOrders[0].orderId) {
+                this.error_count++;
+                this.sell_order_id = sellOrders[0].orderId;
+                print(this.pair, 'CHECK: sell order found with different ID, canceling...');
+                await this.cancel_sell();
+
+            } else if (!this.sell_order_id) {
+                this.error_count++;
+                this.sell_order_id = sellOrders[0].orderId;
+                print(this.pair, 'CHECK: had no buy sell_order_id but found a sell order, cancelling...');
+                await this.cancel_sell();
+
+                // All good with order
+            } else {
+                print(this.pair, `CHECK: no problem found with sell order, same id: (${this.sell_order_id == sellOrders[0].orderId})`);
+            }
+
+        } else if (sellOrders.length === 0) {
             delete this.sell_order_id;
             print(this.pair, 'Pair had no sell orders');
         }
@@ -273,7 +299,10 @@ class Pair {
 
     async cancel_buy_error(e) {
         this.error_count++;
-        print(this.pair, `Error when canceling buy order, checking orders... ${this.order_id} ${this.buy_placed}`, e);
+        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011) {
+            if (this.log_level >= 2)
+                print(this.pair, '`Error when canceling buy order: -2011 no such order, checking...');
+        } else print(this.pair, `Error when canceling buy order, checking orders... ${this.order_id} ${this.buy_placed}`, e);
         await this.check_buy_orders();
     }
 
@@ -460,7 +489,10 @@ class Pair {
 
     async cancel_sell_error(e) {
         this.error_count++;
-        print(this.pair, 'Error when canceling sell order, checking orders...', e);
+        if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011) {
+            if (this.log_level >= 2)
+                print(this.pair, '`Error when canceling sell order: -2011 no such order, checking...');
+        } else print(this.pair, `Error when canceling sell order, checking orders...`, e);
         await this.check_sell_orders();
     }
 
