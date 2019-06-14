@@ -301,7 +301,7 @@ class Pair {
         this.error_count++;
         if (e.body && typeof e.body == 'string' && JSON.parse(e.body).code == -2011) {
             if (this.log_level >= 2)
-                print(this.pair, '`Error when canceling buy order: -2011 no such order, checking...');
+                print(this.pair, 'Error when canceling buy order: -2011 no such order, checking...');
         } else print(this.pair, `Error when canceling buy order, checking orders... ${this.order_id} ${this.buy_placed}`, e);
         await this.check_buy_orders();
     }
@@ -397,6 +397,7 @@ class Pair {
         this.order_id = res.orderId;
         this.before_last_buy_line = this.last_buy_line;
         this.last_buy_line = this.buy_line;
+        this.last_position_size = this.position_size;
         this.buy_placed = true;
         this.busy = false;
         this.is_placing_buy_order = false;
@@ -866,7 +867,7 @@ class Pair {
         this.last_buy_line_fill = this.last_buy_line;
 
         // Filled ?
-        if (totalBalance >= this.position_size) {
+        if (totalBalance >= this.last_position_size) {
             print(this.pair, `FILLED BUY (${pct_filled}%) at price: ${this.last_buy_line.toFixed(8)}`);
             delete this.order_id;
             this.buy_placed = false;
